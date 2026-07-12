@@ -18,6 +18,7 @@ from build_site import (
 
 def article() -> dict:
     return {
+        "eval_status": "failed",
         "edition_date": "2026-07-12",
         "title": "<NineAM> edition",
         "body": "<b>First</b> fact [S1-F1].\n\nSecond fact [S1-F1].",
@@ -114,6 +115,25 @@ class StaticSiteTests(unittest.TestCase):
 
     @patch("build_site.load_edition_context", return_value=(None, None, []))
     def test_blocked_edition_is_rejected(self, _load_context):
+        with self.assertRaisesRegex(ValueError, "blocked"):
+            load_site_edition(date(2026, 7, 12))
+
+    @patch("build_site.load_edition_context")
+    def test_pending_article_is_rejected_despite_an_older_evaluation(self, load_context):
+        pending_article = article()
+        pending_article["eval_status"] = "pending"
+        load_context.return_value = (
+            pending_article,
+            {
+                "checks_json": json.dumps({"factual_claim_count": 1}),
+                "faithfulness_score": 1.0,
+                "citation_validity_score": 1.0,
+                "citation_completeness_score": 1.0,
+                "contradiction_score": 1.0,
+            },
+            [{"verdict": "supported"}],
+        )
+
         with self.assertRaisesRegex(ValueError, "blocked"):
             load_site_edition(date(2026, 7, 12))
 

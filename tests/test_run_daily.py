@@ -1,4 +1,5 @@
 import json
+import inspect
 import unittest
 from datetime import date
 from unittest.mock import Mock
@@ -49,10 +50,16 @@ def publication_decision(outcome: PublicationOutcome) -> PublicationDecision:
 
 
 class DailyRunnerTests(unittest.TestCase):
+    def test_publication_runner_has_no_ingestion_stage(self):
+        self.assertNotIn(
+            "ingestion_stage",
+            inspect.signature(run_daily).parameters,
+        )
+        self.assertNotIn("run_ingestion", inspect.getsource(run_daily))
+
     def test_completed_warning_edition_is_a_no_op(self):
         context = completed_context()
         setup = Mock()
-        ingestion = Mock()
         clustering = Mock()
         generation = Mock()
         evaluation = Mock()
@@ -61,7 +68,6 @@ class DailyRunnerTests(unittest.TestCase):
         result = run_daily(
             date(2026, 7, 12),
             setup_stage=setup,
-            ingestion_stage=ingestion,
             clustering_stage=clustering,
             generation_stage=generation,
             evaluation_stage=evaluation,
@@ -74,7 +80,6 @@ class DailyRunnerTests(unittest.TestCase):
             PublicationOutcome.PUBLISHABLE_WITH_WARNINGS,
         )
         setup.assert_called_once_with()
-        ingestion.assert_not_called()
         clustering.assert_not_called()
         generation.assert_not_called()
         evaluation.assert_not_called()
@@ -91,7 +96,6 @@ class DailyRunnerTests(unittest.TestCase):
         result = run_daily(
             date(2026, 7, 12),
             setup_stage=Mock(),
-            ingestion_stage=Mock(),
             clustering_stage=Mock(),
             generation_stage=Mock(),
             evaluation_stage=evaluation,
@@ -103,7 +107,6 @@ class DailyRunnerTests(unittest.TestCase):
 
     def test_new_edition_runs_each_stage_once(self):
         completed = completed_context()
-        ingestion = Mock()
         clustering = Mock()
         generation = Mock(return_value={"title": "New edition"})
         evaluation = Mock()
@@ -115,7 +118,6 @@ class DailyRunnerTests(unittest.TestCase):
         result = run_daily(
             date(2026, 7, 12),
             setup_stage=Mock(),
-            ingestion_stage=ingestion,
             clustering_stage=clustering,
             generation_stage=generation,
             evaluation_stage=evaluation,
@@ -123,7 +125,6 @@ class DailyRunnerTests(unittest.TestCase):
         )
 
         self.assertFalse(result.no_op)
-        ingestion.assert_called_once_with()
         clustering.assert_called_once_with(date(2026, 7, 12))
         generation.assert_called_once_with("2026-07-12")
         evaluation.assert_called_once_with("2026-07-12")
@@ -135,7 +136,6 @@ class DailyRunnerTests(unittest.TestCase):
         result = run_daily(
             date(2026, 7, 12),
             setup_stage=Mock(),
-            ingestion_stage=Mock(),
             clustering_stage=Mock(),
             generation_stage=generation,
             evaluation_stage=evaluation,

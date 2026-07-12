@@ -6,6 +6,7 @@ from app.services.publication import PublicationOutcome, decide_publication
 
 def article() -> dict:
     return {
+        "eval_status": "failed",
         "title": "NineAM edition",
         "body": "A supported fact happened [S1-F1].",
         "sources_json": json.dumps([
@@ -100,6 +101,19 @@ class PublicationPolicyTests(unittest.TestCase):
 
         self.assertEqual(decision.outcome, PublicationOutcome.BLOCKED)
         self.assertIn("Evaluation is incomplete", decision.reasons[0])
+
+    def test_pending_article_cannot_use_an_older_valid_evaluation(self):
+        pending_article = article()
+        pending_article["eval_status"] = "pending"
+
+        decision = decide_publication(
+            pending_article,
+            evaluation(1),
+            claims(1),
+        )
+
+        self.assertEqual(decision.outcome, PublicationOutcome.BLOCKED)
+        self.assertTrue(any("has not completed evaluation" in reason for reason in decision.reasons))
 
     def test_malformed_article_is_blocked(self):
         malformed_article = article()

@@ -195,8 +195,10 @@ Implementation:
 - Add a manually triggered GitHub Actions workflow first.
 - Cache Python dependencies and the embedding model.
 - Configure GitHub secrets for Turso, Gemini, and Vercel; never echo them.
-- Run the daily command and deploy `dist/` directly with Vercel CLI only when
-  the publication decision is clean or publishable with warnings.
+- Run `python main.py` once at 07:00 IST to collect the current edition's
+  source rows before the 08:00 IST cutoff. Run the publication command after
+  cutoff and deploy `dist/` directly with Vercel CLI only when the publication
+  decision is clean or publishable with warnings.
 - Preserve the previous Vercel production deployment when blocked.
 - After a successful manual end-to-end run, add scheduled executions at 8:07 AM
   and 8:32 AM IST with a concurrency lock and an early no-op for an already
@@ -306,3 +308,19 @@ At the beginning of a new session:
 - Python compilation and `git diff --check` passed. The user-owned
   `nineam_editorial_prototype.html` remains unchanged and outside this
   milestone's commit.
+
+### 2026-07-12 — Post-Milestone-4 production-blocker correction
+
+- Separated collection from publication: `run_daily.py` no longer ingests, so
+  post-cutoff publication runs cannot add rows to the edition they render.
+  Collection remains `python main.py`; the future Milestone 5 schedule records
+  one 07:00 IST collection before the 08:00 cutoff and the existing 08:07/
+  08:32 IST publication attempts.
+- Blocked stale-evaluation publication: only `passed`, `failed`, and
+  `needs_review` article statuses can consume an evaluation. A regenerated
+  `pending` article is blocked even when an older evaluation is structurally
+  valid, while completed warning editions remain eligible.
+- Added runner and policy/static-builder regression tests for both conditions.
+- The full suite passed 39 tests; the saved warning edition still completed both
+  local publication classification and static rendering without Gemini or
+  network calls.

@@ -95,18 +95,14 @@ def run_daily(
         edition_date: date,
         *,
         setup_stage=setup_database,
-        ingestion_stage=None,
         clustering_stage=None,
         generation_stage=None,
         evaluation_stage=None,
         context_loader=load_edition_context,
 ) -> DailyRunResult:
-    """Runs only missing stages, preserving any completed edition as-is."""
+    """Runs post-collection stages while preserving completed editions as-is."""
     edition_date_string = edition_date.isoformat()
 
-    if ingestion_stage is None:
-        from main import run_ingestion
-        ingestion_stage = run_ingestion
     if clustering_stage is None:
         from cluster_articles import run_clustering
         clustering_stage = run_clustering
@@ -135,7 +131,6 @@ def run_daily(
             no_op=True,
         )
 
-    ingestion_stage()
     clustering_stage(edition_date)
     generated_article = generation_stage(edition_date_string)
     if generated_article is None:

@@ -20,6 +20,9 @@ class PublicationOutcome(str, Enum):
     BLOCKED = "blocked"
 
 
+COMPLETED_EVAL_STATUSES = {"passed", "failed", "needs_review"}
+
+
 @dataclass(frozen=True)
 class PublicationDecision:
     outcome: PublicationOutcome
@@ -46,6 +49,10 @@ def _article_errors(article: dict[str, Any] | None) -> list[str]:
         return ["No generated article exists for this edition."]
 
     errors = []
+    if article.get("eval_status") not in COMPLETED_EVAL_STATUSES:
+        errors.append(
+            "The current generated article has not completed evaluation."
+        )
     if not str(article.get("title", "")).strip():
         errors.append("Article title is empty.")
     if not str(article.get("body", "")).strip():
