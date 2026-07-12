@@ -1,9 +1,8 @@
 import json
-import sqlite3
 from datetime import date, datetime, time, timezone, timedelta
 from zoneinfo import ZoneInfo
 import argparse
-from app.database.db import DB_PATH
+from app.database.db import connect_database
 from app.services.clustering import ArticleForClustering, cluster_articles
 
 INDIA_TIMEZONE = ZoneInfo("Asia/Kolkata")
@@ -36,7 +35,7 @@ def edition_window_utc(edition_date: date) -> tuple[str, str]:
 
 
 def load_articles(window_start: str, window_end: str) -> list[ArticleForClustering]:
-    conn = sqlite3.connect(DB_PATH)
+    conn = connect_database()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -70,7 +69,7 @@ def load_articles(window_start: str, window_end: str) -> list[ArticleForClusteri
 
 
 def save_clusters(clusters, run_date: str) -> None:
-    conn = sqlite3.connect(DB_PATH)
+    conn = connect_database()
     cursor = conn.cursor()
 
     cursor.execute("""

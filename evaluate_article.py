@@ -1,11 +1,10 @@
 import argparse
 import json
 import re
-import sqlite3
 from datetime import date
 import time
 
-from app.database.db import DB_PATH, setup_database
+from app.database.db import connect_database, row_to_dict, setup_database
 from app.services.evaluation import (
     build_sentence_records, extract_citation_ids,
     validate_citation_ids, validate_citation_map,
@@ -38,8 +37,7 @@ def word_count(text: str) -> int:
 
 
 def load_generated_article(edition_date: str) -> dict:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = connect_database()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -56,12 +54,13 @@ def load_generated_article(edition_date: str) -> dict:
     """, (edition_date,))
 
     row = cursor.fetchone()
+    article = row_to_dict(cursor, row)
     conn.close()
 
-    if row is None:
+    if article is None:
         raise ValueError(f"No generated article found for {edition_date}.")
 
-    return dict(row)
+    return article
 
 
 def parse_json(value: str, field_name: str, errors: list[str]):
@@ -154,7 +153,7 @@ def run_deterministic_checks(article: dict) -> dict:
 
 
 def save_eval_run(article_id: int, result: dict) -> int | None:
-    conn = sqlite3.connect(DB_PATH)
+    conn = connect_database()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -404,7 +403,7 @@ def apply_claim_results(result, claim_results):
 
 
 def finalize_eval_run(eval_run_id, article_id, result, claim_results):
-    conn = sqlite3.connect(DB_PATH)
+    conn = connect_database()
     cursor = conn.cursor()
 
     for claim_result in claim_results:

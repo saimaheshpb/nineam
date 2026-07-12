@@ -77,7 +77,7 @@ main.py
   -> local embedding
   -> exact URL skip
   -> semantic match logging
-  -> SQLite items
+  -> Turso items in production, local SQLite during development
 cluster_articles.py
   -> load current edition articles
   -> cluster by cosine similarity
@@ -101,7 +101,7 @@ Target V1 flow still needed:
 ```text
 generated_articles row
   -> eval harness
-  -> only passed articles are eligible
+  -> publication policy
   -> static site generation
 ```
 
@@ -111,7 +111,9 @@ Implemented:
 
 - Multi-source RSS configuration in `app/config.py`.
 - Article scraping in `app/scrapers/article.py`.
-- SQLite schema in `app/database/db.py`.
+- Shared Turso/local-SQLite connection and schema setup in `app/database/db.py`.
+- Idempotent, relationship-aware SQLite-to-Turso import and verification.
+- Production Turso database seeded with the current six-table dataset.
 - Gemini structured extraction in `app/services/llm.py`.
 - Evidence extraction into `items.evidence_json`.
 - Local embeddings in `app/services/embeddings.py`.
@@ -127,9 +129,9 @@ Implemented:
 
 Pending for V1:
 
-- Static website generation that renders only `eval_status = 'passed'`.
+- Static website generation that renders editions allowed by the publication
+  policy defined in `PLANS.md`.
 - One-command daily orchestration and a scheduler that runs before 9 AM IST.
-- Dependency file and root `.gitignore`.
 - Repository cleanup: remove editor/runtime artifacts and unneeded legacy modules.
 - Broader tests, including eval integration fixtures and failure cases.
 
@@ -140,7 +142,6 @@ Pending after the first shippable V1:
 - Detect unresolved conflicts between evidence from different sources.
 - Add a separate editorial coverage/quality judge.
 - Build golden examples, adversarial mutations, and manual judge calibration.
-- Revisit SQLite and hosting once the local product is working end to end.
 
 ## Active Files
 
@@ -150,7 +151,8 @@ Keep these for V1:
 - `cluster_articles.py` - edition clustering and cluster persistence
 - `generate_article.py` - article draft generation
 - `app/config.py` - RSS source list
-- `app/database/db.py` - SQLite setup
+- `app/database/db.py` - Turso/local-SQLite connection selection and schema setup
+- `import_sqlite_to_turso.py` - safe one-time cloud import and verification
 - `app/scrapers/rss.py` - RSS parsing
 - `app/scrapers/article.py` - article text scraping
 - `app/services/llm.py` - Gemini extraction and generation
@@ -239,10 +241,24 @@ The user wants the project to stay free, relying on Gemini's generous free tier.
 Use the project virtual environment:
 
 ```bash
+.venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python main.py
 .venv/bin/python cluster_articles.py
 .venv/bin/python generate_article.py
 .venv/bin/python evaluate_article.py
+```
+
+Database selection:
+
+- with both `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`, every stage uses Turso;
+- with neither variable, every stage uses the local `news_aggregator.db`;
+- configuring only one variable is an error, preventing silent local fallback.
+
+`.env.example` documents the required variable names without containing secrets.
+To verify or import an existing local database after configuring Turso:
+
+```bash
+.venv/bin/python import_sqlite_to_turso.py
 ```
 
 Notes:
@@ -254,13 +270,9 @@ Notes:
 
 ## Next Chat: Start Here
 
-The next implementation milestone is the smallest complete product loop:
-
-1. Add `.gitignore`, dependency declaration, and remove confirmed legacy/runtime files.
-2. Build `site/index.html` from the latest passed `generated_articles` row.
-3. Run the full local path with a known-good fixture or article and verify that a passed article renders.
-4. Add a single orchestration command for ingestion -> clustering -> generation -> evaluation -> publishing.
-5. Add scheduling and document how the 9 AM IST run is triggered.
+Read `PLANS.md` and begin the first milestone not marked complete. After Turso
+persistence, the next milestone is edition timing, publication policy, and the
+single idempotent daily command.
 
 ## Current Known Issues
 
@@ -272,7 +284,9 @@ The next implementation milestone is the smallest complete product loop:
 - The pipeline has separate scripts but no production orchestrator or scheduler.
 - Article scraping is basic and may include boilerplate.
 - `processed_at` is used instead of article `published_at`.
-- SQLite, local embeddings, local `.env`, and a local filesystem are development choices, not a deployed production setup.
+- Local SQLite remains the no-credential development fallback; Turso is the
+  durable cloud database, while scheduling and static deployment are not yet
+  implemented.
 
 ## Resume Positioning
 

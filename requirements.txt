@@ -1,0 +1,10 @@
+beautifulsoup4==4.15.0
+feedparser==6.0.12
+google-genai==2.10.0
+libsql==0.1.11
+numpy==2.5.1
+pydantic==2.13.4
+python-dotenv==1.2.2
+requests==2.34.2
+sentence-transformers==5.6.0
+youtube-transcript-api==1.2.4

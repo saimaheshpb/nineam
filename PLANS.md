@@ -84,7 +84,7 @@ Completion evidence required:
 - GitHub contains the baseline `main` branch.
 - Local and remote `codex/vercel-site` branches exist and track one another.
 
-### [ ] Milestone 2 — Turso Persistence
+### [x] COMPLETED — Milestone 2 — Turso Persistence
 
 Objective: give the pipeline durable cloud storage while preserving the current
 SQLite-style schema and local development path.
@@ -108,7 +108,8 @@ Completion evidence required:
 - Existing unit tests pass.
 - Database-focused tests cover local selection, Turso selection, and missing
   partial credentials without making a live network call.
-- All current pipeline reads/writes work against a test Turso database.
+- Schema creation, import writes, and the existing pipeline read paths work
+  against Turso without scraping or Gemini calls.
 - Imported Turso table counts match the local source database.
 
 ### [ ] Milestone 3 — Edition Timing, Publication Policy, and Daily Command
@@ -218,3 +219,26 @@ At the beginning of a new session:
   `https://github.com/saimaheshpb/nineam`.
 - Created local `codex/vercel-site`; the milestone checkpoint commit on this
   branch will be pushed before pausing.
+
+### 2026-07-12 — Milestone 2 completed
+
+- Added pinned direct dependencies and a secret-free `.env.example`.
+- Added one connection selector: complete Turso credentials use libSQL; no
+  credentials use local SQLite; partial credentials raise an error.
+- Routed schema setup, ingestion, clustering, generation, and evaluation through
+  the shared connection while replacing `sqlite3.Row` with portable cursor
+  metadata conversion.
+- Added an idempotent SQLite-to-Turso importer that copies all six tables in
+  dependency order, rejects mismatched existing targets, validates JSON and
+  relationships, and rolls back corrupt imports without printing credentials.
+- Created the `nineam` Turso database and imported the current dataset:
+  `items=4`, `story_clusters=4`, `story_cluster_items=4`,
+  `generated_articles=1`, `eval_runs=4`, `claim_evaluations=59`.
+- A second live import performed no writes and reported the same counts.
+- Live read-path smoke checks loaded 4 edition articles, 3 top clusters, the
+  generated article, and a semantic match from Turso without Gemini calls.
+- Live integrity checks found valid source/citation JSON, zero orphaned
+  relationships, and the expected latest evaluation values: 48 supported and
+  11 unsupported claims, faithfulness `0.814`.
+- `.venv/bin/python -m unittest discover -s tests -v` passed all 18 tests.
+- Full Python compilation and `git diff --check` passed.
