@@ -1,11 +1,10 @@
 import json
-import sqlite3
 import time
 from app.scrapers.article import get_article_text
 from app.scrapers.rss import get_latest_urls
 from app.services.embeddings import calculate_similarity, get_embedding
 from app.services.llm import extract_structured_data
-from app.database.db import setup_database, DB_PATH
+from app.database.db import connect_database, setup_database
 from app.config import RSS_SOURCES
 
 SIMILARITY_THRESHOLD = 0.75
@@ -16,7 +15,7 @@ def find_semantic_match(
 ) -> tuple[int, str, float] | None:
     """Returns the most similar stored story when it crosses the threshold."""
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = connect_database()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -40,10 +39,10 @@ def find_semantic_match(
     return best_match
 
 
-def run_daily_pipeline():
+def run_ingestion():
     setup_database()
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = connect_database()
     cursor = conn.cursor()
 
     for source in RSS_SOURCES:
@@ -117,6 +116,11 @@ def run_daily_pipeline():
             time.sleep(12)
 
     conn.close()
+
+
+def run_daily_pipeline():
+    """Backward-compatible name for the direct ingestion script."""
+    run_ingestion()
 
 
 if __name__ == "__main__":

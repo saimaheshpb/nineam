@@ -58,7 +58,7 @@ and deploys that artifact directly to Vercel.
 
 ## Milestones
 
-### [ ] Milestone 1 — Repository Safety and GitHub Baseline
+### [x] COMPLETED — Milestone 1 — Repository Safety and GitHub Baseline
 
 Objective: preserve the verified local pipeline in a clean GitHub repository
 before production changes begin.
@@ -84,7 +84,7 @@ Completion evidence required:
 - GitHub contains the baseline `main` branch.
 - Local and remote `codex/vercel-site` branches exist and track one another.
 
-### [ ] Milestone 2 — Turso Persistence
+### [x] COMPLETED — Milestone 2 — Turso Persistence
 
 Objective: give the pipeline durable cloud storage while preserving the current
 SQLite-style schema and local development path.
@@ -108,37 +108,57 @@ Completion evidence required:
 - Existing unit tests pass.
 - Database-focused tests cover local selection, Turso selection, and missing
   partial credentials without making a live network call.
-- All current pipeline reads/writes work against a test Turso database.
+- Schema creation, import writes, and the existing pipeline read paths work
+  against Turso without scraping or Gemini calls.
 - Imported Turso table counts match the local source database.
 
-### [ ] Milestone 3 — Edition Timing, Publication Policy, and Daily Command
+### [x] COMPLETED — Milestone 3 — Lean Daily Publish Gate
 
-Objective: turn the separate pipeline stages into one safe, repeatable daily
-operation.
+Objective: turn the existing separate pipeline stages into one safe, repeatable
+daily operation without delaying the first deployment for schema migrations,
+automatic retries, or scheduling work.
 
 Implementation:
 
-- Capture RSS `published_at` timestamps and persist them on source items.
-- Use the locked 8:00 AM IST cutoff and UTC query bounds for edition membership.
+- Keep the locked 8:00 AM IST cutoff and UTC query bounds for edition
+  membership.
 - Add one orchestration command:
   `python run_daily.py --edition-date YYYY-MM-DD`.
-- Run setup, bounded ingestion, clustering, generation, evaluation, publication
-  decision, and site-build eligibility in order.
-- Keep initial ingestion to at most one eligible unseen article per configured
-  source so Gemini 2.5 Flash remains within the observed free daily allowance.
-- Prevent a completed evaluated edition from being silently overwritten.
-- Make reruns idempotent and return clear clean, warning, blocked, and
-  infrastructure-error outcomes.
+- Run setup, bounded ingestion, clustering, generation, evaluation, and a
+  shared publication decision in order. The existing one-item-per-source
+  ingestion limit remains in place.
+- Classify a fully supported edition as `clean`; classify a structurally valid,
+  fully evaluated edition with at least 50% supported claims and fewer than 20%
+  contradicted claims as `publishable_with_warnings`; block malformed,
+  incomplete, low-support, or high-contradiction editions.
+- Prevent an existing generated or evaluated edition from being silently
+  overwritten. Completed editions are no-ops on rerun.
+- Return stable clean, warning, blocked, and infrastructure-error outcomes so
+  the static builder and GitHub Actions can consume the same contract later.
 
 Completion evidence required:
 
 - Existing and new orchestration tests pass without Gemini calls.
-- Boundary tests prove start-inclusive/end-exclusive IST-to-UTC behavior.
-- A second run of the same completed edition is a no-op.
+- Boundary tests prove start-inclusive/end-exclusive 08:00 IST-to-UTC behavior.
+- A completed warning edition is a no-op.
 - The current 48/59-supported article is classified as publishable with
-  warnings; catastrophic fixtures are blocked.
+  warnings; incomplete, malformed, low-support, and high-contradiction fixtures
+  are blocked.
 
-### [ ] Milestone 4 — Static Article Website
+### Deferred from Milestone 3
+
+The following work is intentionally excluded to reach a credible first deployment quickly. It is deferred, not abandoned.
+
+- **RSS `published_at` persistence and data migration:** V1 continues to select items by `processed_at`. Adding source publication timestamps requires RSS parsing changes, schema migration, backfill policy, and handling feeds with missing or inconsistent dates. The scheduled daily run still produces a bounded daily edition without this work.
+- **Ingestion retries and richer recovery states:** the runner will distinguish a blocked edition from an infrastructure failure, but will not retry scraping or Gemini calls automatically. Automatic retries risk duplicate quota use and make first-launch behavior harder to reason about.
+- **Automatic article regeneration or repair:** a completed edition is never silently overwritten. Regeneration remains an explicit operator action so the evidence and evaluation trail remain auditable.
+- **Evaluation calibration and stricter evaluator changes:** goldens, adversarial fixtures, cross-source conflict detection, editorial judging, and judge calibration remain post-launch hardening. Milestone 3 uses the already implemented claim-level evidence trail and makes its warning status visible.
+- **Static rendering and Vercel deployment:** these belong exclusively to Milestones 4 and 5. Milestone 3 supplies only the deterministic decision that those milestones consume.
+- **GitHub Actions scheduling:** a manual production workflow must be verified first. Scheduling is deferred to Milestone 5 because free runners do not guarantee execution timing.
+
+This scope keeps the production path focused on the project’s core differentiators—multi-source clustering and claim-level evaluation—while avoiding schema churn and automation complexity before the site is live.
+
+### [x] COMPLETED — Milestone 4 — Static Article Website
 
 Objective: render the selected edition as a small, safe, responsive static site.
 
@@ -149,6 +169,9 @@ Implementation:
   edition.
 - Render NineAM branding, edition date, headline, article, numbered source
   links, a deduplicated source list, and compact transparency metrics.
+- Add a bottom-of-page source-grounded evaluation section showing claim support,
+  citation validity and completeness, contradictions, and clear clean/warning
+  publication status without claiming objective truth verification.
 - Explain the ingestion-to-evaluation pipeline without turning the page into a
   dashboard.
 - Escape generated text before adding HTML structure or citation links.
@@ -172,8 +195,10 @@ Implementation:
 - Add a manually triggered GitHub Actions workflow first.
 - Cache Python dependencies and the embedding model.
 - Configure GitHub secrets for Turso, Gemini, and Vercel; never echo them.
-- Run the daily command and deploy `dist/` directly with Vercel CLI only when
-  the publication decision is clean or publishable with warnings.
+- Run `python main.py` once at 07:00 IST to collect the current edition's
+  source rows before the 08:00 IST cutoff. Run the publication command after
+  cutoff and deploy `dist/` directly with Vercel CLI only when the publication
+  decision is clean or publishable with warnings.
 - Preserve the previous Vercel production deployment when blocked.
 - After a successful manual end-to-end run, add scheduled executions at 8:07 AM
   and 8:32 AM IST with a concurrency lock and an early no-op for an already
@@ -204,4 +229,98 @@ At the beginning of a new session:
 
 ## Completion Log
 
-No production milestones have been completed yet.
+### 2026-07-12 — Milestone 1 completed
+
+- Added the root `.gitignore` and this cross-session ExecPlan.
+- Rebuilt the initial index without deleting local files; `.env`, `*.db`,
+  `.idea/`, `.venv/`, and Python caches are ignored and absent from Git.
+- `git diff --cached --check` passed before the baseline commit, and a staged
+  secret-pattern scan found no credential values.
+- `.venv/bin/python -m unittest discover -s tests -v` passed all 7 tests.
+- `.venv/bin/python -m compileall -q main.py cluster_articles.py
+  generate_article.py evaluate_article.py app tests` passed.
+- Baseline commit `681356d` was pushed to `main` at
+  `https://github.com/saimaheshpb/nineam`.
+- Created local `codex/vercel-site`; the milestone checkpoint commit on this
+  branch will be pushed before pausing.
+
+### 2026-07-12 — Milestone 2 completed
+
+- Added pinned direct dependencies and a secret-free `.env.example`.
+- Added one connection selector: complete Turso credentials use libSQL; no
+  credentials use local SQLite; partial credentials raise an error.
+- Routed schema setup, ingestion, clustering, generation, and evaluation through
+  the shared connection while replacing `sqlite3.Row` with portable cursor
+  metadata conversion.
+- Added an idempotent SQLite-to-Turso importer that copies all six tables in
+  dependency order, rejects mismatched existing targets, validates JSON and
+  relationships, and rolls back corrupt imports without printing credentials.
+- Created the `nineam` Turso database and imported the current dataset:
+  `items=4`, `story_clusters=4`, `story_cluster_items=4`,
+  `generated_articles=1`, `eval_runs=4`, `claim_evaluations=59`.
+- A second live import performed no writes and reported the same counts.
+- Live read-path smoke checks loaded 4 edition articles, 3 top clusters, the
+  generated article, and a semantic match from Turso without Gemini calls.
+- Live integrity checks found valid source/citation JSON, zero orphaned
+  relationships, and the expected latest evaluation values: 48 supported and
+  11 unsupported claims, faithfulness `0.814`.
+- `.venv/bin/python -m unittest discover -s tests -v` passed all 18 tests.
+- Full Python compilation and `git diff --check` passed.
+
+### 2026-07-12 — Milestone 3 completed
+
+- Changed the edition boundary to `[previous-day 08:00 IST, edition-day 08:00
+  IST)` and preserved UTC comparison values for `processed_at` queries.
+- Added a shared, database-independent publication policy. It exposes `clean`,
+  `publishable_with_warnings`, and `blocked` decisions with source, citation,
+  evaluation-completion, support-rate, and contradiction-rate safeguards.
+- Added `run_daily.py --edition-date YYYY-MM-DD`, which runs only missing
+  stages, protects generated/evaluated editions from overwrite, prints a stable
+  publication outcome, and reserves exit code `1` for infrastructure errors and
+  `2` for blocked editions.
+- Refactored clustering, generation, evaluation, and ingestion scripts into
+  callable stage functions while keeping their direct command-line entry points.
+- Added policy, 08:00 IST boundary, and daily-runner unit tests. The full suite
+  passed 31 tests without Gemini or network calls.
+- Local command smoke test:
+  `TURSO_DATABASE_URL= TURSO_AUTH_TOKEN= .venv/bin/python run_daily.py
+  --edition-date 2026-07-12` returned `publishable_with_warnings` with
+  `NO_OP=true`; it did not rerun ingestion, generation, or evaluation.
+
+### 2026-07-12 — Milestone 4 completed
+
+- Added `build_site.py --edition-date YYYY-MM-DD --output dist`, which renders
+  only clean or warning editions and rejects blocked editions through the shared
+  publication policy.
+- Built a dependency-free article-first page from the selected edition's title,
+  body, clusters, immutable citation map, sources, and claim-evaluation trail.
+  It uses numbered source links, responsive editorial typography, a masthead,
+  and an accessible mobile rail layout.
+- Added the source-grounded evaluation section with actual claim counts, support
+  rate, citation validity/completeness, contradiction count, and warning
+  disclosure. It describes source support rather than objective truth checking.
+- The current 2026-07-12 local edition rendered as
+  `publishable_with_warnings`; the generated HTML had no unresolved citation
+  identifiers.
+- Added static-builder tests for escaping, citation resolution, source
+  deduplication, warning metrics, blocked-edition rejection, and artifact
+  writing. The full suite passed 36 tests without Gemini or network calls.
+- Python compilation and `git diff --check` passed. The user-owned
+  `nineam_editorial_prototype.html` remains unchanged and outside this
+  milestone's commit.
+
+### 2026-07-12 — Post-Milestone-4 production-blocker correction
+
+- Separated collection from publication: `run_daily.py` no longer ingests, so
+  post-cutoff publication runs cannot add rows to the edition they render.
+  Collection remains `python main.py`; the future Milestone 5 schedule records
+  one 07:00 IST collection before the 08:00 cutoff and the existing 08:07/
+  08:32 IST publication attempts.
+- Blocked stale-evaluation publication: only `passed`, `failed`, and
+  `needs_review` article statuses can consume an evaluation. A regenerated
+  `pending` article is blocked even when an older evaluation is structurally
+  valid, while completed warning editions remain eligible.
+- Added runner and policy/static-builder regression tests for both conditions.
+- The full suite passed 39 tests; the saved warning edition still completed both
+  local publication classification and static rendering without Gemini or
+  network calls.

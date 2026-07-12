@@ -1,7 +1,7 @@
-import sqlite3, json
+import json
 from datetime import date
 import argparse
-from app.database.db import DB_PATH
+from app.database.db import connect_database
 
 from app.services.llm import (
     generate_daily_article,
@@ -22,7 +22,7 @@ def parse_edition_date() -> date:
 
 
 def load_top_clusters(edition_date: str, limit: int = 3, ) -> list[dict]:
-    conn = sqlite3.connect(DB_PATH)
+    conn = connect_database()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -140,7 +140,7 @@ def save_generated_article(edition_date: str, generated_article: dict,
 
     cluster_ids = [cluster["id"] for cluster in clusters]
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = connect_database()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -180,13 +180,11 @@ def save_generated_article(edition_date: str, generated_article: dict,
     conn.close()
 
 
-def main():
-    edition_date = parse_edition_date().isoformat()
+def generate_edition(edition_date: str) -> dict | None:
     clusters = load_top_clusters(edition_date)
 
     if not clusters:
-        print(f"No clusters found for {edition_date}.")
-        return
+        return None
 
     article_brief, citation_map = build_article_brief(clusters)
 
@@ -195,10 +193,20 @@ def main():
     generated_article = generate_daily_article(article_brief)
 
     if not generated_article:
-        print(f"Article generation failed for {edition_date}.")
-        return
+        return None
 
     save_generated_article(edition_date, generated_article, clusters, citation_map)
+
+    return generated_article
+
+
+def main():
+    edition_date = parse_edition_date().isoformat()
+    generated_article = generate_edition(edition_date)
+
+    if generated_article is None:
+        print(f"Article generation failed or no clusters found for {edition_date}.")
+        return
 
     print(f"\n{generated_article['title']}\n")
     print(generated_article["body"])

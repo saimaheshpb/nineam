@@ -1,14 +1,50 @@
-import sqlite3
 import os
+import sqlite3
+
+import libsql
+from dotenv import load_dotenv
 
 # This forces Python to look in the root folder of your project
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB_PATH = os.path.join(BASE_DIR, "news_aggregator.db")
 
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
-def setup_database():
-    """Creates the V2 database tables if they don't exist yet."""
-    conn = sqlite3.connect(DB_PATH)
+
+def connect_database():
+    """Connects to Turso when configured, otherwise to local SQLite."""
+    turso_url = os.getenv("TURSO_DATABASE_URL", "").strip()
+    turso_auth_token = os.getenv("TURSO_AUTH_TOKEN", "").strip()
+
+    if bool(turso_url) != bool(turso_auth_token):
+        raise RuntimeError(
+            "TURSO_DATABASE_URL and TURSO_AUTH_TOKEN must be configured together."
+        )
+
+    if turso_url:
+        return libsql.connect(
+            turso_url,
+            auth_token=turso_auth_token,
+        )
+
+    return sqlite3.connect(DB_PATH)
+
+
+def row_to_dict(cursor, row):
+    """Converts a database result tuple into a column-name dictionary."""
+    if row is None:
+        return None
+
+    column_names = [
+        column_description[0]
+        for column_description in cursor.description
+    ]
+
+    return dict(zip(column_names, row))
+
+
+def create_schema(conn):
+    """Creates the database tables on an existing connection."""
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -104,4 +140,13 @@ def setup_database():
     """)
 
     conn.commit()
-    conn.close()
+
+
+def setup_database():
+    """Creates the database tables on the configured database."""
+    conn = connect_database()
+
+    try:
+        create_schema(conn)
+    finally:
+        conn.close()

@@ -1,9 +1,8 @@
 import json
-import sqlite3
 from datetime import date, datetime, time, timezone, timedelta
 from zoneinfo import ZoneInfo
 import argparse
-from app.database.db import DB_PATH
+from app.database.db import connect_database
 from app.services.clustering import ArticleForClustering, cluster_articles
 
 INDIA_TIMEZONE = ZoneInfo("Asia/Kolkata")
@@ -23,7 +22,7 @@ def parse_edition_date() -> date:
 def edition_window_utc(edition_date: date) -> tuple[str, str]:
     window_end = datetime.combine(
         edition_date,
-        time(9, 0),
+        time(8, 0),
         tzinfo=INDIA_TIMEZONE,
     ).astimezone(timezone.utc)
 
@@ -36,7 +35,7 @@ def edition_window_utc(edition_date: date) -> tuple[str, str]:
 
 
 def load_articles(window_start: str, window_end: str) -> list[ArticleForClustering]:
-    conn = sqlite3.connect(DB_PATH)
+    conn = connect_database()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -70,7 +69,7 @@ def load_articles(window_start: str, window_end: str) -> list[ArticleForClusteri
 
 
 def save_clusters(clusters, run_date: str) -> None:
-    conn = sqlite3.connect(DB_PATH)
+    conn = connect_database()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -123,13 +122,19 @@ def save_clusters(clusters, run_date: str) -> None:
     conn.close()
 
 
-def main():
-    edition_date = parse_edition_date()
+def run_clustering(edition_date: date):
     window_start, window_end = edition_window_utc(edition_date)
 
     articles = load_articles(window_start, window_end)
     clusters = cluster_articles(articles)
     save_clusters(clusters, edition_date.isoformat())
+
+    return articles, clusters
+
+
+def main():
+    edition_date = parse_edition_date()
+    articles, clusters = run_clustering(edition_date)
 
     print(f"\nLoaded {len(articles)} articles")
     print(f"Created {len(clusters)} story clusters\n")

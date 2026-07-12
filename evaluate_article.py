@@ -1,11 +1,10 @@
 import argparse
 import json
 import re
-import sqlite3
 from datetime import date
 import time
 
-from app.database.db import DB_PATH, setup_database
+from app.database.db import connect_database, row_to_dict, setup_database
 from app.services.evaluation import (
     build_sentence_records, extract_citation_ids,
     validate_citation_ids, validate_citation_map,
@@ -38,8 +37,7 @@ def word_count(text: str) -> int:
 
 
 def load_generated_article(edition_date: str) -> dict:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = connect_database()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -56,12 +54,13 @@ def load_generated_article(edition_date: str) -> dict:
     """, (edition_date,))
 
     row = cursor.fetchone()
+    article = row_to_dict(cursor, row)
     conn.close()
 
-    if row is None:
+    if article is None:
         raise ValueError(f"No generated article found for {edition_date}.")
 
-    return dict(row)
+    return article
 
 
 def parse_json(value: str, field_name: str, errors: list[str]):
@@ -154,7 +153,7 @@ def run_deterministic_checks(article: dict) -> dict:
 
 
 def save_eval_run(article_id: int, result: dict) -> int | None:
-    conn = sqlite3.connect(DB_PATH)
+    conn = connect_database()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -404,7 +403,7 @@ def apply_claim_results(result, claim_results):
 
 
 def finalize_eval_run(eval_run_id, article_id, result, claim_results):
-    conn = sqlite3.connect(DB_PATH)
+    conn = connect_database()
     cursor = conn.cursor()
 
     for claim_result in claim_results:
@@ -468,21 +467,58 @@ def finalize_eval_run(eval_run_id, article_id, result, claim_results):
     conn.close()
 
 
-def main():
+def evaluate_edition(edition_date: str) -> dict | None:
+    """Evaluates one saved edition and persists its evaluation trail."""
     setup_database()
-
-    edition_date = parse_edition_date()
 
     try:
         article = load_generated_article(edition_date)
-    except ValueError as e:
-        print(e)
-        return
+    except ValueError:
+        return None
 
     result = run_deterministic_checks(article)
     eval_run_id = save_eval_run(article["id"], result)
 
-    print(f"Eval run: {eval_run_id}")
+    if result["overall_status"] == "failed":
+        return result
+
+    try:
+        claims = extract_claims_from_article(article["body"])
+    except RuntimeError as error:
+        raise RuntimeError(f"Claim extraction failed: {error}") from error
+
+    try:
+        citation_map = json.loads(article["citation_map_json"])
+        claim_results = judge_factual_claims(claims, citation_map)
+    except (RuntimeError, ValueError) as error:
+        raise RuntimeError(f"Claim judging failed: {error}") from error
+
+    result = apply_claim_results(result, claim_results)
+
+    finalize_eval_run(
+        eval_run_id,
+        article["id"],
+        result,
+        claim_results,
+    )
+
+    result["claim_results"] = claim_results
+    return result
+
+
+def main():
+    edition_date = parse_edition_date()
+
+    try:
+        result = evaluate_edition(edition_date)
+    except RuntimeError as error:
+        print(error)
+        return
+
+    if result is None:
+        print(f"No generated article found for {edition_date}.")
+        return
+
     print(f"Status: {result['overall_status']}")
     print(
         "Citation validity: "
@@ -496,30 +532,9 @@ def main():
         "Citation-map errors: "
         f"{result['checks']['citation_map_errors']}"
     )
-    if result["overall_status"] == "failed":
+
+    if "faithfulness_score" not in result:
         return
-
-    try:
-        claims = extract_claims_from_article(article["body"])
-    except RuntimeError as error:
-        print(f"Claim extraction failed: {error}")
-        return
-
-    try:
-        citation_map = json.loads(article["citation_map_json"])
-        claim_results = judge_factual_claims(claims, citation_map)
-    except (RuntimeError, ValueError) as error:
-        print(f"Claim judging failed: {error}")
-        return
-
-    result = apply_claim_results(result, claim_results)
-
-    finalize_eval_run(
-        eval_run_id,
-        article["id"],
-        result,
-        claim_results,
-    )
 
     print(f"\nFinal status: {result['overall_status']}")
     print(f"Faithfulness score: {result['faithfulness_score']:.2f}")
@@ -531,7 +546,7 @@ def main():
 
     print("\nClaims needing attention:\n")
 
-    for claim_result in claim_results:
+    for claim_result in result.get("claim_results", []):
         if claim_result["verdict"] != "supported":
             print(
                 f"{claim_result['claim_index']}. "
