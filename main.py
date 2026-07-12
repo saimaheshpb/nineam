@@ -39,7 +39,7 @@ def find_semantic_match(
     return best_match
 
 
-def run_daily_pipeline():
+def run_ingestion():
     setup_database()
 
     conn = connect_database()
@@ -116,6 +116,11 @@ def run_daily_pipeline():
             time.sleep(12)
 
     conn.close()
+
+
+def run_daily_pipeline():
+    """Backward-compatible name for the direct ingestion script."""
+    run_ingestion()
 
 
 if __name__ == "__main__":

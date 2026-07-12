@@ -112,32 +112,51 @@ Completion evidence required:
   against Turso without scraping or Gemini calls.
 - Imported Turso table counts match the local source database.
 
-### [ ] Milestone 3 — Edition Timing, Publication Policy, and Daily Command
+### [x] COMPLETED — Milestone 3 — Lean Daily Publish Gate
 
-Objective: turn the separate pipeline stages into one safe, repeatable daily
-operation.
+Objective: turn the existing separate pipeline stages into one safe, repeatable
+daily operation without delaying the first deployment for schema migrations,
+automatic retries, or scheduling work.
 
 Implementation:
 
-- Capture RSS `published_at` timestamps and persist them on source items.
-- Use the locked 8:00 AM IST cutoff and UTC query bounds for edition membership.
+- Keep the locked 8:00 AM IST cutoff and UTC query bounds for edition
+  membership.
 - Add one orchestration command:
   `python run_daily.py --edition-date YYYY-MM-DD`.
-- Run setup, bounded ingestion, clustering, generation, evaluation, publication
-  decision, and site-build eligibility in order.
-- Keep initial ingestion to at most one eligible unseen article per configured
-  source so Gemini 2.5 Flash remains within the observed free daily allowance.
-- Prevent a completed evaluated edition from being silently overwritten.
-- Make reruns idempotent and return clear clean, warning, blocked, and
-  infrastructure-error outcomes.
+- Run setup, bounded ingestion, clustering, generation, evaluation, and a
+  shared publication decision in order. The existing one-item-per-source
+  ingestion limit remains in place.
+- Classify a fully supported edition as `clean`; classify a structurally valid,
+  fully evaluated edition with at least 50% supported claims and fewer than 20%
+  contradicted claims as `publishable_with_warnings`; block malformed,
+  incomplete, low-support, or high-contradiction editions.
+- Prevent an existing generated or evaluated edition from being silently
+  overwritten. Completed editions are no-ops on rerun.
+- Return stable clean, warning, blocked, and infrastructure-error outcomes so
+  the static builder and GitHub Actions can consume the same contract later.
 
 Completion evidence required:
 
 - Existing and new orchestration tests pass without Gemini calls.
-- Boundary tests prove start-inclusive/end-exclusive IST-to-UTC behavior.
-- A second run of the same completed edition is a no-op.
+- Boundary tests prove start-inclusive/end-exclusive 08:00 IST-to-UTC behavior.
+- A completed warning edition is a no-op.
 - The current 48/59-supported article is classified as publishable with
-  warnings; catastrophic fixtures are blocked.
+  warnings; incomplete, malformed, low-support, and high-contradiction fixtures
+  are blocked.
+
+### Deferred from Milestone 3
+
+The following work is intentionally excluded to reach a credible first deployment quickly. It is deferred, not abandoned.
+
+- **RSS `published_at` persistence and data migration:** V1 continues to select items by `processed_at`. Adding source publication timestamps requires RSS parsing changes, schema migration, backfill policy, and handling feeds with missing or inconsistent dates. The scheduled daily run still produces a bounded daily edition without this work.
+- **Ingestion retries and richer recovery states:** the runner will distinguish a blocked edition from an infrastructure failure, but will not retry scraping or Gemini calls automatically. Automatic retries risk duplicate quota use and make first-launch behavior harder to reason about.
+- **Automatic article regeneration or repair:** a completed edition is never silently overwritten. Regeneration remains an explicit operator action so the evidence and evaluation trail remain auditable.
+- **Evaluation calibration and stricter evaluator changes:** goldens, adversarial fixtures, cross-source conflict detection, editorial judging, and judge calibration remain post-launch hardening. Milestone 3 uses the already implemented claim-level evidence trail and makes its warning status visible.
+- **Static rendering and Vercel deployment:** these belong exclusively to Milestones 4 and 5. Milestone 3 supplies only the deterministic decision that those milestones consume.
+- **GitHub Actions scheduling:** a manual production workflow must be verified first. Scheduling is deferred to Milestone 5 because free runners do not guarantee execution timing.
+
+This scope keeps the production path focused on the project’s core differentiators—multi-source clustering and claim-level evaluation—while avoiding schema churn and automation complexity before the site is live.
 
 ### [ ] Milestone 4 — Static Article Website
 
@@ -242,3 +261,23 @@ At the beginning of a new session:
   11 unsupported claims, faithfulness `0.814`.
 - `.venv/bin/python -m unittest discover -s tests -v` passed all 18 tests.
 - Full Python compilation and `git diff --check` passed.
+
+### 2026-07-12 — Milestone 3 completed
+
+- Changed the edition boundary to `[previous-day 08:00 IST, edition-day 08:00
+  IST)` and preserved UTC comparison values for `processed_at` queries.
+- Added a shared, database-independent publication policy. It exposes `clean`,
+  `publishable_with_warnings`, and `blocked` decisions with source, citation,
+  evaluation-completion, support-rate, and contradiction-rate safeguards.
+- Added `run_daily.py --edition-date YYYY-MM-DD`, which runs only missing
+  stages, protects generated/evaluated editions from overwrite, prints a stable
+  publication outcome, and reserves exit code `1` for infrastructure errors and
+  `2` for blocked editions.
+- Refactored clustering, generation, evaluation, and ingestion scripts into
+  callable stage functions while keeping their direct command-line entry points.
+- Added policy, 08:00 IST boundary, and daily-runner unit tests. The full suite
+  passed 31 tests without Gemini or network calls.
+- Local command smoke test:
+  `TURSO_DATABASE_URL= TURSO_AUTH_TOKEN= .venv/bin/python run_daily.py
+  --edition-date 2026-07-12` returned `publishable_with_warnings` with
+  `NO_OP=true`; it did not rerun ingestion, generation, or evaluation.

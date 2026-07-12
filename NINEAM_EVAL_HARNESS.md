@@ -2,7 +2,7 @@
 
 This document is the detailed source of truth for NineAM evaluation. Read `README.md` first for overall project status; read this file when changing evaluation behavior.
 
-Status as of 2026-07-12: the V1 core claim-level harness is implemented and has been exercised locally. The latest run validated all citation IDs, extracted 59 factual claims, judged them against their cited evidence, and correctly blocked the article because 11 claims were unsupported. The remaining work below is evaluation hardening, not the missing core.
+Status as of 2026-07-12: the V1 core claim-level harness is implemented and has been exercised locally. The latest run validated all citation IDs, extracted 59 factual claims, and judged them against their cited evidence; the strict evaluator marked it failed because 11 claims were unsupported. Milestone 3's separate publication policy classifies that fully evaluated, 48/59-supported, zero-contradiction result as `publishable_with_warnings`, which must be disclosed publicly. The remaining work below is evaluation hardening, not the missing core.
 
 ## Why This Exists
 
@@ -23,7 +23,7 @@ NineAM cannot prove that a news source is objectively true in the real world. It
 1. The article uses only selected source evidence.
 2. Every factual claim has a traceable evidence citation.
 3. An evaluator checks whether each cited excerpt supports the claim.
-4. Unsupported major claims, citation errors, and material contradictions block publication.
+4. The strict evaluator records unsupported major claims, citation errors, and material contradictions in the audit trail. The production publication policy consumes that trail and blocks malformed, incomplete, low-support, or high-contradiction editions; it labels qualifying non-clean editions with warnings.
 5. The complete evaluation trail is stored for inspection.
 
 This is a source-grounded synthesis and evaluation system, not an omniscient fact checker.
@@ -40,7 +40,7 @@ RSS sources
   -> local embeddings
   -> semantic similarity and clustering
   -> cluster ranking
-  -> 9 AM IST daily edition window
+  -> 8 AM IST daily edition cutoff
   -> top-ranked cluster selection
   -> evidence brief
   -> Gemini article generation
@@ -572,7 +572,9 @@ pending -> failed
 pending -> needs_review
 ```
 
-The static publishing step must only render articles with `eval_status = 'passed'`.
+The static publishing step must use the Milestone 3 publication policy rather
+than `eval_status` alone: it may render `clean` or
+`publishable_with_warnings` editions and must reject `blocked` editions.
 
 ## Phase 10: Calibration and Adversarial Benchmark
 
@@ -667,7 +669,9 @@ Remaining:
 - Do not let the judge inspect unrelated evidence when evaluating a citation.
 - Do not rely on source links listed only at the end of an article.
 - Do not store only one pass/fail boolean; persist claim-level reasons.
-- Do not publish `pending`, `failed`, or `needs_review` articles.
+- Do not publish an edition without a completed publication decision. The
+  Milestone 3 policy may render a fully evaluated `failed` or `needs_review`
+  article only as `publishable_with_warnings`, with its metrics disclosed.
 - Do not claim objective truth verification; claim source-grounded evaluation.
 - Do not make threshold decisions before manually reviewing initial judge results.
 

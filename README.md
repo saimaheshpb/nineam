@@ -2,9 +2,14 @@
 
 NineAM is a daily AI/tech news synthesis system. By 9 AM, it should publish one readable, evidence-backed article generated from multiple sources.
 
-This is the only project-tracking document to read first. It exists so the user and any new chat can understand the product, current state, decisions, and next steps without digging through old conversation context.
+Read this overview first, then read `PLANS.md`, the cross-session execution
+checkpoint. Together they let a new chat understand the product, current state,
+decisions, and next steps without digging through old conversation context.
 
-Last verified: 2026-07-12. The local V1 pipeline and core claim-level eval harness are implemented. The latest eval correctly blocked an article with 11 unsupported claims out of 59, so publishing is not wired yet.
+Last verified: 2026-07-12. The local V1 pipeline, core claim-level eval harness,
+and daily publication gate are implemented. The saved edition has 11 unsupported
+claims out of 59, so the strict evaluator marks it failed while the publication
+policy makes it publishable with warnings; static rendering is not wired yet.
 
 ## Product Goal
 
@@ -50,14 +55,14 @@ Each article belongs to an `edition_date`.
 For V1, the edition window is:
 
 ```text
-previous day 9:00 AM IST -> edition date 9:00 AM IST
+previous day 8:00 AM IST -> edition date 8:00 AM IST
 ```
 
 Example:
 
 ```text
 2026-07-10 edition
-= articles processed from 2026-07-09 09:00 IST through 2026-07-10 09:00 IST
+= articles processed from 2026-07-09 08:00 IST through 2026-07-10 08:00 IST
 ```
 
 Current caveat: V1 uses `processed_at` as the edition timestamp. Later, RSS parsing should store actual article `published_at`.
@@ -94,6 +99,10 @@ evaluate_article.py
   -> judge claims against cited evidence
   -> save eval_runs and claim_evaluations
   -> update generated_articles.eval_status
+run_daily.py
+  -> run only missing stages for one edition
+  -> derive clean / publishable_with_warnings / blocked publication outcome
+  -> preserve completed editions as no-ops
 ```
 
 Target V1 flow still needed:
@@ -126,12 +135,14 @@ Implemented:
 - Atomic claim extraction and cited-evidence faithfulness judging.
 - Claim-level eval persistence in `eval_runs` and `claim_evaluations`.
 - Publish status updates: `pending`, `passed`, `failed`, and `needs_review`.
+- Publication decisions: `clean`, `publishable_with_warnings`, and `blocked`.
+- One-command daily orchestration with completed-edition no-ops.
 
 Pending for V1:
 
 - Static website generation that renders editions allowed by the publication
   policy defined in `PLANS.md`.
-- One-command daily orchestration and a scheduler that runs before 9 AM IST.
+- A scheduler that runs before 9 AM IST.
 - Repository cleanup: remove editor/runtime artifacts and unneeded legacy modules.
 - Broader tests, including eval integration fixtures and failure cases.
 
@@ -150,6 +161,7 @@ Keep these for V1:
 - `main.py` - ingestion pipeline
 - `cluster_articles.py` - edition clustering and cluster persistence
 - `generate_article.py` - article draft generation
+- `run_daily.py` - idempotent daily orchestration and publication outcome
 - `app/config.py` - RSS source list
 - `app/database/db.py` - Turso/local-SQLite connection selection and schema setup
 - `import_sqlite_to_turso.py` - safe one-time cloud import and verification
@@ -158,6 +170,7 @@ Keep these for V1:
 - `app/services/llm.py` - Gemini extraction and generation
 - `app/services/embeddings.py` - local embedding and cosine similarity helpers
 - `app/services/clustering.py` - story clustering and ranking
+- `app/services/publication.py` - shared clean/warning/blocked policy
 
 Likely remove or ignore:
 
@@ -246,6 +259,7 @@ Use the project virtual environment:
 .venv/bin/python cluster_articles.py
 .venv/bin/python generate_article.py
 .venv/bin/python evaluate_article.py
+.venv/bin/python run_daily.py --edition-date YYYY-MM-DD
 ```
 
 Database selection:
@@ -270,18 +284,20 @@ Notes:
 
 ## Next Chat: Start Here
 
-Read `PLANS.md` and begin the first milestone not marked complete. After Turso
-persistence, the next milestone is edition timing, publication policy, and the
-single idempotent daily command.
+Read `PLANS.md` and begin the first milestone not marked complete. The next
+milestone is static article website generation.
 
 ## Current Known Issues
 
-- The latest real article was blocked by 11 unsupported claims; generation needs to be tightened or regenerated before it can publish.
+- The latest real article was marked `failed` by the strict evaluator because 11
+  claims were unsupported. Milestone 3's separate publication policy classifies
+  it as `publishable_with_warnings` (48/59 claims supported, no
+  contradictions); Milestone 4 must disclose this visibly if it renders it.
 - The evaluator currently uses LLM claim extraction and judging but has no golden benchmark or calibration report.
 - If a Gemini claim-extraction or judging call is interrupted, the current run can remain at `needs_review` instead of being recorded as `error`.
 - Cross-source contradiction detection and editorial-quality scoring are not implemented.
 - `story_cluster_items.similarity_to_representative` is currently saved as `NULL`.
-- The pipeline has separate scripts but no production orchestrator or scheduler.
+- The pipeline has a daily orchestrator but no scheduler yet.
 - Article scraping is basic and may include boilerplate.
 - `processed_at` is used instead of article `published_at`.
 - Local SQLite remains the no-credential development fallback; Turso is the
