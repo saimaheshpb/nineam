@@ -103,6 +103,9 @@ run_daily.py
   -> run only missing stages for one edition
   -> derive clean / publishable_with_warnings / blocked publication outcome
   -> preserve completed editions as no-ops
+build_site.py
+  -> render a clean or warning edition as static HTML and CSS
+  -> expose source-grounded evaluation metrics without a runtime API
 ```
 
 Target V1 flow still needed:
@@ -137,11 +140,10 @@ Implemented:
 - Publish status updates: `pending`, `passed`, `failed`, and `needs_review`.
 - Publication decisions: `clean`, `publishable_with_warnings`, and `blocked`.
 - One-command daily orchestration with completed-edition no-ops.
+- Static article rendering with linked citations and claim-level transparency.
 
 Pending for V1:
 
-- Static website generation that renders editions allowed by the publication
-  policy defined in `PLANS.md`.
 - A scheduler that runs before 9 AM IST.
 - Repository cleanup: remove editor/runtime artifacts and unneeded legacy modules.
 - Broader tests, including eval integration fixtures and failure cases.
@@ -162,6 +164,7 @@ Keep these for V1:
 - `cluster_articles.py` - edition clustering and cluster persistence
 - `generate_article.py` - article draft generation
 - `run_daily.py` - idempotent daily orchestration and publication outcome
+- `build_site.py` - static edition renderer
 - `app/config.py` - RSS source list
 - `app/database/db.py` - Turso/local-SQLite connection selection and schema setup
 - `import_sqlite_to_turso.py` - safe one-time cloud import and verification
@@ -171,6 +174,7 @@ Keep these for V1:
 - `app/services/embeddings.py` - local embedding and cosine similarity helpers
 - `app/services/clustering.py` - story clustering and ranking
 - `app/services/publication.py` - shared clean/warning/blocked policy
+- `app/assets/editorial.css` - responsive editorial site stylesheet
 
 Likely remove or ignore:
 
@@ -260,6 +264,7 @@ Use the project virtual environment:
 .venv/bin/python generate_article.py
 .venv/bin/python evaluate_article.py
 .venv/bin/python run_daily.py --edition-date YYYY-MM-DD
+.venv/bin/python build_site.py --edition-date YYYY-MM-DD --output dist
 ```
 
 Database selection:
@@ -285,7 +290,7 @@ Notes:
 ## Next Chat: Start Here
 
 Read `PLANS.md` and begin the first milestone not marked complete. The next
-milestone is static article website generation.
+milestone is GitHub Actions and Vercel publishing.
 
 ## Current Known Issues
 
@@ -298,6 +303,8 @@ milestone is static article website generation.
 - Cross-source contradiction detection and editorial-quality scoring are not implemented.
 - `story_cluster_items.similarity_to_representative` is currently saved as `NULL`.
 - The pipeline has a daily orchestrator but no scheduler yet.
+- The static builder is local only; GitHub Actions and Vercel deployment are
+  not implemented yet.
 - Article scraping is basic and may include boilerplate.
 - `processed_at` is used instead of article `published_at`.
 - Local SQLite remains the no-credential development fallback; Turso is the

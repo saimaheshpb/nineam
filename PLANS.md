@@ -158,7 +158,7 @@ The following work is intentionally excluded to reach a credible first deploymen
 
 This scope keeps the production path focused on the project’s core differentiators—multi-source clustering and claim-level evaluation—while avoiding schema churn and automation complexity before the site is live.
 
-### [ ] Milestone 4 — Static Article Website
+### [x] COMPLETED — Milestone 4 — Static Article Website
 
 Objective: render the selected edition as a small, safe, responsive static site.
 
@@ -169,6 +169,9 @@ Implementation:
   edition.
 - Render NineAM branding, edition date, headline, article, numbered source
   links, a deduplicated source list, and compact transparency metrics.
+- Add a bottom-of-page source-grounded evaluation section showing claim support,
+  citation validity and completeness, contradictions, and clear clean/warning
+  publication status without claiming objective truth verification.
 - Explain the ingestion-to-evaluation pipeline without turning the page into a
   dashboard.
 - Escape generated text before adding HTML structure or citation links.
@@ -281,3 +284,25 @@ At the beginning of a new session:
   `TURSO_DATABASE_URL= TURSO_AUTH_TOKEN= .venv/bin/python run_daily.py
   --edition-date 2026-07-12` returned `publishable_with_warnings` with
   `NO_OP=true`; it did not rerun ingestion, generation, or evaluation.
+
+### 2026-07-12 — Milestone 4 completed
+
+- Added `build_site.py --edition-date YYYY-MM-DD --output dist`, which renders
+  only clean or warning editions and rejects blocked editions through the shared
+  publication policy.
+- Built a dependency-free article-first page from the selected edition's title,
+  body, clusters, immutable citation map, sources, and claim-evaluation trail.
+  It uses numbered source links, responsive editorial typography, a masthead,
+  and an accessible mobile rail layout.
+- Added the source-grounded evaluation section with actual claim counts, support
+  rate, citation validity/completeness, contradiction count, and warning
+  disclosure. It describes source support rather than objective truth checking.
+- The current 2026-07-12 local edition rendered as
+  `publishable_with_warnings`; the generated HTML had no unresolved citation
+  identifiers.
+- Added static-builder tests for escaping, citation resolution, source
+  deduplication, warning metrics, blocked-edition rejection, and artifact
+  writing. The full suite passed 36 tests without Gemini or network calls.
+- Python compilation and `git diff --check` passed. The user-owned
+  `nineam_editorial_prototype.html` remains unchanged and outside this
+  milestone's commit.
