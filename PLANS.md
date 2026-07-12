@@ -58,7 +58,7 @@ and deploys that artifact directly to Vercel.
 
 ## Milestones
 
-### [ ] Milestone 1 — Repository Safety and GitHub Baseline
+### [x] COMPLETED — Milestone 1 — Repository Safety and GitHub Baseline
 
 Objective: preserve the verified local pipeline in a clean GitHub repository
 before production changes begin.
@@ -204,4 +204,17 @@ At the beginning of a new session:
 
 ## Completion Log
 
-No production milestones have been completed yet.
+### 2026-07-12 — Milestone 1 completed
+
+- Added the root `.gitignore` and this cross-session ExecPlan.
+- Rebuilt the initial index without deleting local files; `.env`, `*.db`,
+  `.idea/`, `.venv/`, and Python caches are ignored and absent from Git.
+- `git diff --cached --check` passed before the baseline commit, and a staged
+  secret-pattern scan found no credential values.
+- `.venv/bin/python -m unittest discover -s tests -v` passed all 7 tests.
+- `.venv/bin/python -m compileall -q main.py cluster_articles.py
+  generate_article.py evaluate_article.py app tests` passed.
+- Baseline commit `681356d` was pushed to `main` at
+  `https://github.com/saimaheshpb/nineam`.
+- Created local `codex/vercel-site`; the milestone checkpoint commit on this
+  branch will be pushed before pausing.
