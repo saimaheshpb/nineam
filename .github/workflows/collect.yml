@@ -2,9 +2,6 @@ name: Collect NineAM sources
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 7 * * *"
-      timezone: "Asia/Kolkata"
 
 permissions:
   contents: read
