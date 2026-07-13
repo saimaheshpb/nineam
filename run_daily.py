@@ -19,6 +19,7 @@ from app.services.publication import (
 class DailyRunResult:
     decision: PublicationDecision
     no_op: bool
+    article_ready: bool = True
 
 
 def parse_edition_date() -> date:
@@ -123,12 +124,14 @@ def run_daily(
             return DailyRunResult(
                 decision=decide_publication(article, evaluation, claims),
                 no_op=False,
+                article_ready=True,
             )
 
         article, evaluation, claims = context_loader(edition_date_string)
         return DailyRunResult(
             decision=decide_publication(article, evaluation, claims),
             no_op=True,
+            article_ready=True,
         )
 
     clustering_stage(edition_date)
@@ -137,6 +140,7 @@ def run_daily(
         return DailyRunResult(
             decision=_no_article_decision(),
             no_op=False,
+            article_ready=False,
         )
 
     evaluation_stage(edition_date_string)
@@ -144,14 +148,12 @@ def run_daily(
     return DailyRunResult(
         decision=decide_publication(article, evaluation, claims),
         no_op=False,
+        article_ready=True,
     )
 
 
 def _exit_code(result: DailyRunResult) -> int:
-    if result.decision.outcome in {
-            PublicationOutcome.CLEAN,
-            PublicationOutcome.PUBLISHABLE_WITH_WARNINGS,
-    }:
+    if result.article_ready:
         return 0
     return 2
 
@@ -167,6 +169,7 @@ def main() -> int:
 
     decision = result.decision
     print(f"EDITION_DATE={edition_date.isoformat()}")
+    print(f"ARTICLE_READY={str(result.article_ready).lower()}")
     print(f"PUBLICATION_OUTCOME={decision.outcome.value}")
     print(f"NO_OP={str(result.no_op).lower()}")
     for reason in decision.reasons:

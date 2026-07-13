@@ -144,9 +144,10 @@ class DailyRunnerTests(unittest.TestCase):
 
         self.assertEqual(result.decision.outcome, PublicationOutcome.BLOCKED)
         self.assertFalse(result.no_op)
+        self.assertFalse(result.article_ready)
         evaluation.assert_not_called()
 
-    def test_exit_codes_make_warning_deployable_and_blocked_safe(self):
+    def test_exit_codes_publish_articles_even_when_evaluation_is_blocked(self):
         clean_result = DailyRunResult(
             decision=publication_decision(PublicationOutcome.CLEAN),
             no_op=False,
@@ -155,14 +156,20 @@ class DailyRunnerTests(unittest.TestCase):
             decision=publication_decision(PublicationOutcome.PUBLISHABLE_WITH_WARNINGS),
             no_op=False,
         )
-        blocked_result = DailyRunResult(
+        blocked_article_result = DailyRunResult(
             decision=publication_decision(PublicationOutcome.BLOCKED),
             no_op=False,
+        )
+        blocked_no_article_result = DailyRunResult(
+            decision=publication_decision(PublicationOutcome.BLOCKED),
+            no_op=False,
+            article_ready=False,
         )
 
         self.assertEqual(_exit_code(clean_result), 0)
         self.assertEqual(_exit_code(warning_result), 0)
-        self.assertEqual(_exit_code(blocked_result), 2)
+        self.assertEqual(_exit_code(blocked_article_result), 0)
+        self.assertEqual(_exit_code(blocked_no_article_result), 2)
 
 
 if __name__ == "__main__":

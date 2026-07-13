@@ -118,24 +118,32 @@ class StaticSiteTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "blocked"):
             load_site_edition(date(2026, 7, 12))
 
+    @patch("build_site._edition_item_count", return_value=4)
+    @patch("build_site._load_cluster_headlines", return_value=["Example <cluster>"])
     @patch("build_site.load_edition_context")
-    def test_pending_article_is_rejected_despite_an_older_evaluation(self, load_context):
+    def test_pending_article_renders_with_evaluation_flag(
+        self,
+        load_context,
+        _load_cluster_headlines,
+        _edition_item_count,
+    ):
         pending_article = article()
         pending_article["eval_status"] = "pending"
         load_context.return_value = (
             pending_article,
-            {
-                "checks_json": json.dumps({"factual_claim_count": 1}),
-                "faithfulness_score": 1.0,
-                "citation_validity_score": 1.0,
-                "citation_completeness_score": 1.0,
-                "contradiction_score": 1.0,
-            },
-            [{"verdict": "supported"}],
+            {"checks_json": json.dumps({})},
+            [],
         )
 
-        with self.assertRaisesRegex(ValueError, "blocked"):
-            load_site_edition(date(2026, 7, 12))
+        loaded_edition = load_site_edition(date(2026, 7, 12))
+        page = render_site(loaded_edition)
+
+        self.assertEqual(
+            loaded_edition.decision.outcome,
+            PublicationOutcome.BLOCKED,
+        )
+        self.assertIn("Evaluation flagged — article published", page)
+        self.assertIn("Not available", page)
 
     @patch("build_site.load_site_edition", return_value=edition())
     def test_build_writes_html_and_styles(self, _load_site_edition):

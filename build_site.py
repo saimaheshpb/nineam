@@ -164,11 +164,10 @@ def load_site_edition(edition_date: date) -> SiteEdition:
     )
     decision = decide_publication(article, evaluation, claim_evaluations)
 
-    if decision.outcome == PublicationOutcome.BLOCKED:
+    if article is None:
         reasons = "; ".join(decision.reasons)
-        raise ValueError(f"Edition is blocked and cannot be rendered: {reasons}")
+        raise ValueError(f"Edition is blocked: {reasons}")
 
-    assert article is not None
     citation_map = _parse_json(article["citation_map_json"], "citation_map_json")
     if not isinstance(citation_map, dict):
         raise ValueError("citation_map_json must contain an object.")
@@ -194,7 +193,13 @@ def _reading_time(body: str) -> int:
 
 
 def _percentage(value: float | None) -> str:
-    return f"{(value or 0) * 100:.0f}%"
+    if value is None:
+        return "Not available"
+    return f"{value * 100:.0f}%"
+
+
+def _metric(value) -> str:
+    return "Not available" if value is None else str(value)
 
 
 def _source_numbers(sources: list[SourceEntry]) -> dict[str, int]:
@@ -280,20 +285,32 @@ def _render_evaluation(edition: SiteEdition) -> str:
         claim.get("verdict") != "supported"
         for claim in edition.claim_evaluations
     )
-    status_class = "warning" if (
-        decision.outcome == PublicationOutcome.PUBLISHABLE_WITH_WARNINGS
-    ) else "clean"
-    status_label = (
-        "Published with warnings"
-        if status_class == "warning"
-        else "Strict evaluation passed"
-    )
-    status_copy = (
-        f"This edition is published with warnings: {unsupported_count} factual "
-        "claims were not fully supported by their cited evidence."
-        if status_class == "warning"
-        else "Every evaluated factual claim was supported by its cited evidence."
-    )
+    if decision.outcome == PublicationOutcome.CLEAN:
+        status_label = "Strict evaluation passed"
+        status_copy = "Every evaluated factual claim was supported by its cited evidence."
+    elif decision.outcome == PublicationOutcome.PUBLISHABLE_WITH_WARNINGS:
+        status_label = "Published with warnings"
+        status_copy = (
+            f"This edition is published with warnings: {unsupported_count} factual "
+            "claims were not fully supported by their cited evidence."
+        )
+    else:
+        status_label = "Evaluation flagged — article published"
+        status_copy = (
+            "The article was published, but evaluation was incomplete or flagged: "
+            + "; ".join(decision.reasons)
+        )
+    status_class = "warning" if decision.outcome != PublicationOutcome.CLEAN else "clean"
+
+    claims_evaluated = _metric(decision.factual_claim_count)
+    if decision.supported_claim_count is None or decision.factual_claim_count is None:
+        supported_claims = "Not available"
+    else:
+        supported_claims = (
+            f"{decision.supported_claim_count} / {decision.factual_claim_count} "
+            f"<small>({_percentage(decision.support_rate)})</small>"
+        )
+    contradicted_claims = _metric(decision.contradicted_claim_count)
 
     return f"""
     <section class="evaluation" aria-labelledby="evaluation-heading">
@@ -308,11 +325,11 @@ def _render_evaluation(edition: SiteEdition) -> str:
             <span>{html.escape(status_copy)}</span>
         </div>
         <dl class="evaluation-grid">
-            <div><dt>Claims evaluated</dt><dd>{decision.factual_claim_count}</dd></div>
-            <div><dt>Claims supported</dt><dd>{decision.supported_claim_count} / {decision.factual_claim_count} <small>({_percentage(decision.support_rate)})</small></dd></div>
+            <div><dt>Claims evaluated</dt><dd>{claims_evaluated}</dd></div>
+            <div><dt>Claims supported</dt><dd>{supported_claims}</dd></div>
             <div><dt>Citation validity</dt><dd>{_percentage(decision.citation_validity_score)}</dd></div>
             <div><dt>Citation completeness</dt><dd>{_percentage(decision.citation_completeness_score)}</dd></div>
-            <div><dt>Contradicted claims</dt><dd>{decision.contradicted_claim_count}</dd></div>
+            <div><dt>Contradicted claims</dt><dd>{contradicted_claims}</dd></div>
         </dl>
     </section>
     """
@@ -329,11 +346,12 @@ def render_site(edition: SiteEdition) -> str:
     edition_date = _format_edition_date(article["edition_date"])
     edition_year = date.fromisoformat(article["edition_date"]).year
     title = html.escape(article["title"])
-    publication_label = (
-        "Published with warnings"
-        if edition.decision.outcome == PublicationOutcome.PUBLISHABLE_WITH_WARNINGS
-        else "Strict evaluation passed"
-    )
+    if edition.decision.outcome == PublicationOutcome.CLEAN:
+        publication_label = "Strict evaluation passed"
+    elif edition.decision.outcome == PublicationOutcome.PUBLISHABLE_WITH_WARNINGS:
+        publication_label = "Published with warnings"
+    else:
+        publication_label = "Evaluation flagged — published"
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -372,7 +390,7 @@ def render_site(edition: SiteEdition) -> str:
           <div class="rail-stat"><span>Sources used</span><strong>{len(edition.sources)}</strong></div>
           <div class="rail-stat"><span>Articles processed</span><strong>{edition.edition_item_count}</strong></div>
           <div class="rail-stat"><span>Selected clusters</span><strong>{len(edition.cluster_headlines)}</strong></div>
-          <div class="rail-stat"><span>Claims evaluated</span><strong>{edition.decision.factual_claim_count}</strong></div>
+          <div class="rail-stat"><span>Claims evaluated</span><strong>{_metric(edition.decision.factual_claim_count)}</strong></div>
           <div class="rail-stat"><span>Publication</span><strong>{html.escape(publication_label)}</strong></div>
         </section>
         <section class="rail-section"><h2>Selected sources</h2><ol class="source-list">{_render_sources(edition.sources)}</ol></section>
