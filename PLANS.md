@@ -94,6 +94,13 @@ Required evidence:
 Milestone 3 stays pending until the change reaches `main` and live run URLs plus
 deployment evidence are recorded here.
 
+Progress evidence — 2026-07-14:
+
+- Commit `985b2ea` was pushed on `codex/eval-workflow-split`.
+- Draft pull request: `https://github.com/saimaheshpb/nineam/pull/4`.
+- Production verification is still pending because the workflow changes have
+  not yet been merged to `main`.
+
 ## Strict Exclusions
 
 - No transient-error retries, rollback, or incomplete-evaluation cleanup.
