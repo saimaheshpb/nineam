@@ -1,6 +1,7 @@
 import argparse
 import json
 import re
+import sys
 from datetime import date
 import time
 
@@ -18,7 +19,33 @@ from app.services.llm import (
 TARGET_MIN_WORDS = 800
 TARGET_MAX_WORDS = 1200
 DETERMINISTIC_EVAL_VERSION = "deterministic-v1"
-JUDGE_REQUEST_DELAY_SECONDS = 13
+EVALUATION_BATCH_SIZE = 10
+EVALUATION_CALLS_PER_GROUP = 3
+EVALUATION_COOLDOWN_SECONDS = 60
+
+
+class EvaluationCallPacer:
+    """Pauses evaluation after each completed group of Gemini calls."""
+
+    def __init__(
+            self,
+            *,
+            calls_per_group: int = EVALUATION_CALLS_PER_GROUP,
+            cooldown_seconds: int = EVALUATION_COOLDOWN_SECONDS,
+            sleep_fn=time.sleep,
+    ):
+        self.calls_per_group = calls_per_group
+        self.cooldown_seconds = cooldown_seconds
+        self.sleep_fn = sleep_fn
+        self.call_count = 0
+
+    def before_call(self) -> None:
+        if self.call_count and self.call_count % self.calls_per_group == 0:
+            print(f"EVALUATION_COOLDOWN_SECONDS={self.cooldown_seconds}")
+            self.sleep_fn(self.cooldown_seconds)
+
+        self.call_count += 1
+        print(f"EVALUATION_API_CALL={self.call_count}")
 
 
 def parse_edition_date() -> str:
@@ -194,14 +221,20 @@ def save_eval_run(article_id: int, result: dict) -> int | None:
 
 # Just a function used to split a list of sentence records into batches.
 # Just to save tokens and money while calling Gemini again in extract_atomic_claims.
-def split_into_batches(records: list[dict], batch_size: int = 5) -> list[list[dict]]:
+def split_into_batches(
+        records: list[dict],
+        batch_size: int = EVALUATION_BATCH_SIZE,
+) -> list[list[dict]]:
     return [
         records[start:start + batch_size]
         for start in range(0, len(records), batch_size)
     ]
 
 
-def extract_claims_from_article(body: str) -> list[dict]:
+def extract_claims_from_article(
+        body: str,
+        pacer: EvaluationCallPacer | None = None,
+) -> list[dict]:
     """
     Extracts atomic claims and deterministically attaches each claim to the
     citation IDs from its original article sentence.
@@ -213,8 +246,10 @@ def extract_claims_from_article(body: str) -> list[dict]:
     }
 
     claims = []
+    pacer = pacer or EvaluationCallPacer()
 
     for batch in split_into_batches(sentence_records):
+        pacer.before_call()
         extracted_claims = extract_atomic_claims(batch)
         batch_indices = {
             record["sentence_index"]
@@ -246,9 +281,14 @@ def extract_claims_from_article(body: str) -> list[dict]:
     return claims
 
 
-def judge_factual_claims(claims, citation_map):
+def judge_factual_claims(
+        claims,
+        citation_map,
+        pacer: EvaluationCallPacer | None = None,
+):
     claim_results = []
     cited_claims = []
+    pacer = pacer or EvaluationCallPacer()
 
     for claim in claims:
         if not claim["is_factual"]:
@@ -274,17 +314,8 @@ def judge_factual_claims(claims, citation_map):
 
     verdicts_by_index = {}
 
-    for batch_number, batch in enumerate(
-            split_into_batches(cited_claims),
-            start=1,
-    ):
-        if batch_number > 1:
-            print(
-                f"Waiting {JUDGE_REQUEST_DELAY_SECONDS} seconds "
-                "before the next judge batch..."
-            )
-            time.sleep(JUDGE_REQUEST_DELAY_SECONDS)
-
+    for batch in split_into_batches(cited_claims):
+        pacer.before_call()
         verdicts = judge_claim_batch(batch, citation_map)
 
         expected_indexes = {
@@ -482,14 +513,16 @@ def evaluate_edition(edition_date: str) -> dict | None:
     if result["overall_status"] == "failed":
         return result
 
+    pacer = EvaluationCallPacer()
+
     try:
-        claims = extract_claims_from_article(article["body"])
+        claims = extract_claims_from_article(article["body"], pacer)
     except RuntimeError as error:
         raise RuntimeError(f"Claim extraction failed: {error}") from error
 
     try:
         citation_map = json.loads(article["citation_map_json"])
-        claim_results = judge_factual_claims(claims, citation_map)
+        claim_results = judge_factual_claims(claims, citation_map, pacer)
     except (RuntimeError, ValueError) as error:
         raise RuntimeError(f"Claim judging failed: {error}") from error
 
@@ -506,18 +539,18 @@ def evaluate_edition(edition_date: str) -> dict | None:
     return result
 
 
-def main():
+def main() -> int:
     edition_date = parse_edition_date()
 
     try:
         result = evaluate_edition(edition_date)
     except RuntimeError as error:
         print(error)
-        return
+        return 1
 
     if result is None:
         print(f"No generated article found for {edition_date}.")
-        return
+        return 2
 
     print(f"Status: {result['overall_status']}")
     print(
@@ -534,7 +567,7 @@ def main():
     )
 
     if "faithfulness_score" not in result:
-        return
+        return 0
 
     print(f"\nFinal status: {result['overall_status']}")
     print(f"Faithfulness score: {result['faithfulness_score']:.2f}")
@@ -556,6 +589,8 @@ def main():
             print(f"   {claim_result['claim_text']}")
             print(f"   Reason: {claim_result['rationale']}")
 
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

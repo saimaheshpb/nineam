@@ -155,13 +155,13 @@ def generate_daily_article(article_brief: str) -> dict:
 
 def extract_atomic_claims(sentence_batch: list[dict]) -> list[dict]:
     """
-    Extracts independently checkable claims from up to five article sentences.
+    Extracts independently checkable claims from up to ten article sentences.
     """
     if not sentence_batch:
         return []
 
-    if len(sentence_batch) > 5:
-        raise ValueError("Claim extraction batches may contain at most five sentences.")
+    if len(sentence_batch) > 10:
+        raise ValueError("Claim extraction batches may contain at most ten sentences.")
 
     prompt = """
     Extract atomic, independently checkable claims from the supplied article
@@ -196,13 +196,13 @@ def extract_atomic_claims(sentence_batch: list[dict]) -> list[dict]:
 
 def judge_claim_batch(claims, citation_map):
     """
-    Judges up to five factual claims only against their cited evidence.
+    Judges up to ten factual claims only against their cited evidence.
     """
     if not claims:
         return []
 
-    if len(claims) > 5:
-        raise ValueError("Claim judge batches may contain at most five claims.")
+    if len(claims) > 10:
+        raise ValueError("Claim judge batches may contain at most ten claims.")
 
     judge_input = []
 

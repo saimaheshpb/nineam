@@ -28,7 +28,6 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      EDITION_DATE: ${{ inputs.edition_date }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -44,23 +43,36 @@ jobs:
           key: ${{ runner.os }}-sentence-transformers-${{ hashFiles('requirements.txt') }}
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
+      - name: Resolve edition date
+        id: edition
+        shell: bash
+        env:
+          REQUESTED_EDITION_DATE: ${{ inputs.edition_date }}
+        run: |
+          if [[ -n "$REQUESTED_EDITION_DATE" ]]; then
+            edition_date="$REQUESTED_EDITION_DATE"
+          else
+            edition_date="$(TZ=Asia/Kolkata date +%F)"
+          fi
+          if [[ ! "$edition_date" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+            echo "Invalid edition date: $edition_date" >&2
+            exit 2
+          fi
+          echo "date=$edition_date" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$edition_date" > edition-date.txt
       - name: Collect source articles
         run: python main.py
-      - name: Run the publication gate
-        shell: bash
-        run: |
-          if [[ -n "$EDITION_DATE" ]]; then
-            python run_daily.py --edition-date "$EDITION_DATE"
-          else
-            python run_daily.py
-          fi
+      - name: Generate edition
+        run: python run_daily.py --edition-date "${{ steps.edition.outputs.date }}"
+      - name: Upload edition-date handoff
+        uses: actions/upload-artifact@v4
+        with:
+          name: nineam-edition-date
+          path: edition-date.txt
       - name: Build static site
-        shell: bash
-        run: |
-          if [[ -n "$EDITION_DATE" ]]; then
-            python build_site.py --edition-date "$EDITION_DATE" --output dist
-          else
-            python build_site.py --output dist
-          fi
+        run: >-
+          python build_site.py
+          --edition-date "${{ steps.edition.outputs.date }}"
+          --output dist
       - name: Deploy static artifact to Vercel
         run: npx --yes vercel@latest deploy dist --prod --yes --token="$VERCEL_TOKEN"
