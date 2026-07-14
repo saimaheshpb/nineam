@@ -3,8 +3,9 @@
 ## Goal
 
 Publish each generated article before evaluation, then evaluate and redeploy it
-through a separate GitHub Actions workflow. Evaluation uses batches of 10 and a
-shared cadence of three Gemini calls followed by a full 60-second cooldown.
+through a separate GitHub Actions workflow. Evaluation uses batches of 10, spaces
+requests 20 seconds apart, and takes a full 60-second cooldown after every third
+call.
 
 ## Working State
 
@@ -24,8 +25,9 @@ Required changes:
   import or invoke evaluation.
 - Increase atomic-extraction batches to 10 sentences and judge batches to 10
   cited factual claims.
-- Share one evaluation pacer across extraction and judging: calls 1–3 run,
-  then the evaluator waits 60 seconds before call 4, and repeats that cadence.
+- Share one evaluation pacer across extraction and judging: calls inside each
+  group are 20 seconds apart, then the evaluator waits 60 seconds after the
+  third call before starting the next group.
 - Make the evaluator CLI exit nonzero for runtime failure or a missing article.
 - Add focused tests without real Gemini calls or real sleeping.
 
@@ -40,8 +42,9 @@ Completion evidence required:
 Completion evidence — 2026-07-14:
 
 - Added generation-only daily orchestration with no evaluator dependency.
-- Increased both evaluation batch types to 10 and added one shared three-call,
-  60-second pacer across extraction and judging.
+- Increased both evaluation batch types to 10 and added one shared pacer across
+  extraction and judging: requests are 20 seconds apart with a full 60-second
+  cooldown after every third call.
 - Added explicit evaluator exit codes `0`, `1`, and `2`.
 - `.venv/bin/python -m unittest discover -s tests -v` passed all 48 tests.
 - Python compilation and `git diff --check` passed.
@@ -85,8 +88,8 @@ Required evidence:
 - Commit and push the focused branch and open a draft pull request.
 - After the workflows reach `main`, verify a daily run deploys the article
   before the evaluation workflow begins.
-- Verify evaluation logs show batches no larger than 10 and a 60-second
-  cooldown after every third evaluation call.
+- Verify evaluation logs show batches no larger than 10, 20-second request
+  intervals, and a 60-second cooldown after every third evaluation call.
 - Verify successful evaluation performs the second deployment.
 - If Gemini returns another 503, verify only evaluation fails and recover with
   the manual evaluation workflow for the same edition date.

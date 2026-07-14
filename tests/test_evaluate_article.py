@@ -63,7 +63,7 @@ class EvaluationBatchTests(unittest.TestCase):
 
 
 class EvaluationPacerTests(unittest.TestCase):
-    def test_seven_calls_sleep_before_calls_four_and_seven(self):
+    def test_seven_calls_are_spaced_with_group_cooldowns(self):
         sleep = Mock()
         pacer = EvaluationCallPacer(sleep_fn=sleep)
 
@@ -71,7 +71,17 @@ class EvaluationPacerTests(unittest.TestCase):
             pacer.before_call()
 
         self.assertEqual(pacer.call_count, 7)
-        self.assertEqual(sleep.call_args_list, [unittest.mock.call(60)] * 2)
+        self.assertEqual(
+            sleep.call_args_list,
+            [
+                unittest.mock.call(20),
+                unittest.mock.call(20),
+                unittest.mock.call(60),
+                unittest.mock.call(20),
+                unittest.mock.call(20),
+                unittest.mock.call(60),
+            ],
+        )
 
     @patch("evaluate_article.judge_claim_batch")
     @patch("evaluate_article.extract_atomic_claims")
@@ -119,7 +129,14 @@ class EvaluationPacerTests(unittest.TestCase):
 
         self.assertEqual(len(results), 20)
         self.assertEqual(pacer.call_count, 4)
-        sleep.assert_called_once_with(60)
+        self.assertEqual(
+            sleep.call_args_list,
+            [
+                unittest.mock.call(20),
+                unittest.mock.call(20),
+                unittest.mock.call(60),
+            ],
+        )
 
 
 class EvaluationCliTests(unittest.TestCase):

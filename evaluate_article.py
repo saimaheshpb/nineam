@@ -21,20 +21,23 @@ TARGET_MAX_WORDS = 1200
 DETERMINISTIC_EVAL_VERSION = "deterministic-v1"
 EVALUATION_BATCH_SIZE = 10
 EVALUATION_CALLS_PER_GROUP = 3
+EVALUATION_REQUEST_INTERVAL_SECONDS = 20
 EVALUATION_COOLDOWN_SECONDS = 60
 
 
 class EvaluationCallPacer:
-    """Pauses evaluation after each completed group of Gemini calls."""
+    """Spaces evaluation calls and pauses after each completed group."""
 
     def __init__(
             self,
             *,
             calls_per_group: int = EVALUATION_CALLS_PER_GROUP,
+            request_interval_seconds: int = EVALUATION_REQUEST_INTERVAL_SECONDS,
             cooldown_seconds: int = EVALUATION_COOLDOWN_SECONDS,
             sleep_fn=time.sleep,
     ):
         self.calls_per_group = calls_per_group
+        self.request_interval_seconds = request_interval_seconds
         self.cooldown_seconds = cooldown_seconds
         self.sleep_fn = sleep_fn
         self.call_count = 0
@@ -43,6 +46,12 @@ class EvaluationCallPacer:
         if self.call_count and self.call_count % self.calls_per_group == 0:
             print(f"EVALUATION_COOLDOWN_SECONDS={self.cooldown_seconds}")
             self.sleep_fn(self.cooldown_seconds)
+        elif self.call_count:
+            print(
+                "EVALUATION_REQUEST_INTERVAL_SECONDS="
+                f"{self.request_interval_seconds}"
+            )
+            self.sleep_fn(self.request_interval_seconds)
 
         self.call_count += 1
         print(f"EVALUATION_API_CALL={self.call_count}")
