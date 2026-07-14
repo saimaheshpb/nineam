@@ -98,10 +98,9 @@ def run_daily(
         setup_stage=setup_database,
         clustering_stage=None,
         generation_stage=None,
-        evaluation_stage=None,
         context_loader=load_edition_context,
 ) -> DailyRunResult:
-    """Runs post-collection stages while preserving completed editions as-is."""
+    """Generates one edition while preserving existing articles as-is."""
     edition_date_string = edition_date.isoformat()
 
     if clustering_stage is None:
@@ -110,24 +109,11 @@ def run_daily(
     if generation_stage is None:
         from generate_article import generate_edition
         generation_stage = generate_edition
-    if evaluation_stage is None:
-        from evaluate_article import evaluate_edition
-        evaluation_stage = evaluate_edition
 
     setup_stage()
 
-    article, _, _ = context_loader(edition_date_string)
+    article, evaluation, claims = context_loader(edition_date_string)
     if article is not None:
-        if article["eval_status"] == "pending":
-            evaluation_stage(edition_date_string)
-            article, evaluation, claims = context_loader(edition_date_string)
-            return DailyRunResult(
-                decision=decide_publication(article, evaluation, claims),
-                no_op=False,
-                article_ready=True,
-            )
-
-        article, evaluation, claims = context_loader(edition_date_string)
         return DailyRunResult(
             decision=decide_publication(article, evaluation, claims),
             no_op=True,
@@ -143,8 +129,14 @@ def run_daily(
             article_ready=False,
         )
 
-    evaluation_stage(edition_date_string)
     article, evaluation, claims = context_loader(edition_date_string)
+    if article is None:
+        return DailyRunResult(
+            decision=_no_article_decision(),
+            no_op=False,
+            article_ready=False,
+        )
+
     return DailyRunResult(
         decision=decide_publication(article, evaluation, claims),
         no_op=False,

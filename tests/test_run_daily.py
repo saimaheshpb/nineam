@@ -62,7 +62,6 @@ class DailyRunnerTests(unittest.TestCase):
         setup = Mock()
         clustering = Mock()
         generation = Mock()
-        evaluation = Mock()
         context_loader = Mock(return_value=context)
 
         result = run_daily(
@@ -70,7 +69,6 @@ class DailyRunnerTests(unittest.TestCase):
             setup_stage=setup,
             clustering_stage=clustering,
             generation_stage=generation,
-            evaluation_stage=evaluation,
             context_loader=context_loader,
         )
 
@@ -82,37 +80,34 @@ class DailyRunnerTests(unittest.TestCase):
         setup.assert_called_once_with()
         clustering.assert_not_called()
         generation.assert_not_called()
-        evaluation.assert_not_called()
 
-    def test_pending_article_is_evaluated_without_regeneration(self):
+    def test_pending_article_is_a_no_op_without_evaluation(self):
         pending_article, _, _ = completed_context(eval_status="pending")
-        completed = completed_context()
-        evaluation = Mock()
-        context_loader = Mock(side_effect=[
-            (pending_article, None, []),
-            completed,
-        ])
+        clustering = Mock()
+        generation = Mock()
+        context_loader = Mock(return_value=(pending_article, None, []))
 
         result = run_daily(
             date(2026, 7, 12),
             setup_stage=Mock(),
-            clustering_stage=Mock(),
-            generation_stage=Mock(),
-            evaluation_stage=evaluation,
+            clustering_stage=clustering,
+            generation_stage=generation,
             context_loader=context_loader,
         )
 
-        self.assertFalse(result.no_op)
-        evaluation.assert_called_once_with("2026-07-12")
+        self.assertTrue(result.no_op)
+        self.assertTrue(result.article_ready)
+        clustering.assert_not_called()
+        generation.assert_not_called()
+        context_loader.assert_called_once_with("2026-07-12")
 
-    def test_new_edition_runs_each_stage_once(self):
-        completed = completed_context()
+    def test_new_edition_runs_generation_stages_without_evaluation(self):
+        pending_article, _, _ = completed_context(eval_status="pending")
         clustering = Mock()
         generation = Mock(return_value={"title": "New edition"})
-        evaluation = Mock()
         context_loader = Mock(side_effect=[
             (None, None, []),
-            completed,
+            (pending_article, None, []),
         ])
 
         result = run_daily(
@@ -120,32 +115,36 @@ class DailyRunnerTests(unittest.TestCase):
             setup_stage=Mock(),
             clustering_stage=clustering,
             generation_stage=generation,
-            evaluation_stage=evaluation,
             context_loader=context_loader,
         )
 
         self.assertFalse(result.no_op)
+        self.assertTrue(result.article_ready)
+        self.assertEqual(result.decision.outcome, PublicationOutcome.BLOCKED)
         clustering.assert_called_once_with(date(2026, 7, 12))
         generation.assert_called_once_with("2026-07-12")
-        evaluation.assert_called_once_with("2026-07-12")
 
     def test_missing_generated_article_is_blocked(self):
         generation = Mock(return_value=None)
-        evaluation = Mock()
 
         result = run_daily(
             date(2026, 7, 12),
             setup_stage=Mock(),
             clustering_stage=Mock(),
             generation_stage=generation,
-            evaluation_stage=evaluation,
             context_loader=Mock(return_value=(None, None, [])),
         )
 
         self.assertEqual(result.decision.outcome, PublicationOutcome.BLOCKED)
         self.assertFalse(result.no_op)
         self.assertFalse(result.article_ready)
-        evaluation.assert_not_called()
+
+    def test_publisher_has_no_evaluation_stage(self):
+        self.assertNotIn(
+            "evaluation_stage",
+            inspect.signature(run_daily).parameters,
+        )
+        self.assertNotIn("evaluate_edition", inspect.getsource(run_daily))
 
     def test_exit_codes_publish_articles_even_when_evaluation_is_blocked(self):
         clean_result = DailyRunResult(
