@@ -101,6 +101,8 @@ Progress evidence — 2026-07-14:
 
 - Commit `985b2ea` was pushed on `codex/eval-workflow-split`.
 - Draft pull request: `https://github.com/saimaheshpb/nineam/pull/4`.
+- Replaced the obsolete handoff-style README with a product-focused overview,
+  architecture, setup, usage, automation, data model, and testing guide.
 - Production verification is still pending because the workflow changes have
   not yet been merged to `main`.
 
@@ -110,7 +112,7 @@ Progress evidence — 2026-07-14:
 - No database schema or migration changes.
 - No model, prompt, scoring, publication-threshold, or UI changes.
 - No article-generation or ingestion pacing changes.
-- No dependency or README changes.
+- No dependency changes.
 - No workflow files beyond `daily.yml` and `evaluate.yml`.
 - No unrelated refactoring or cleanup.
 
