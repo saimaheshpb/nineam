@@ -11,19 +11,19 @@ class NewsSource:
 
 RSS_SOURCES = [
     NewsSource(
-        name="TechCrunch AI",
-        url="https://techcrunch.com/category/artificial-intelligence/feed/",
+        name="The Verge AI",
+        url="https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
         category="ai",
     ),
     NewsSource(
-        name="The Verge",
-        url="https://www.theverge.com/rss/index.xml",
+        name="Ars Technica Technology Lab",
+        url="https://feeds.arstechnica.com/arstechnica/technology-lab",
         category="technology",
     ),
     NewsSource(
-        name="MIT Technology Review",
-        url="https://www.technologyreview.com/feed/",
-        category="technology",
+        name="TechCrunch AI",
+        url="https://techcrunch.com/category/artificial-intelligence/feed/",
+        category="ai",
     ),
     NewsSource(
         name="VentureBeat AI",
@@ -31,8 +31,40 @@ RSS_SOURCES = [
         category="ai",
     ),
     NewsSource(
-        name="Ars Technica",
-        url="https://feeds.arstechnica.com/arstechnica/index",
-        category="technology",
+        name="OpenAI News",
+        url="https://openai.com/news/rss.xml",
+        category="ai",
+    ),
+    NewsSource(
+        name="Google DeepMind",
+        url="https://deepmind.google/blog/rss.xml",
+        category="ai",
+    ),
+    NewsSource(
+        name="Google AI",
+        url="https://blog.google/technology/ai/rss/",
+        category="ai",
+    ),
+    NewsSource(
+        name="Hugging Face",
+        url="https://huggingface.co/blog/feed.xml",
+        category="ai",
+    ),
+    NewsSource(
+        name="Berkeley AI Research",
+        url="https://bair.berkeley.edu/blog/feed.xml",
+        category="ai",
+    ),
+    NewsSource(
+        name="The Gradient",
+        url="https://thegradient.pub/rss/",
+        category="ai",
     ),
 ]
+
+
+YOUTUBE_SOURCE = NewsSource(
+    name="ThePrimeTime",
+    url="https://www.youtube.com/@ThePrimeTimeagen/videos",
+    category="technology",
+)

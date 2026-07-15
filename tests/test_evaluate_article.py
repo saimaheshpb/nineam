@@ -8,6 +8,7 @@ from evaluate_article import (
     EvaluationCallPacer,
     extract_claims_from_article,
     judge_factual_claims,
+    run_deterministic_checks,
     split_into_batches,
 )
 
@@ -137,6 +138,36 @@ class EvaluationPacerTests(unittest.TestCase):
                 unittest.mock.call(60),
             ],
         )
+
+
+class DeterministicWordCountTests(unittest.TestCase):
+    @staticmethod
+    def article_with_word_count(count):
+        return {
+            "title": "NineAM edition",
+            "body": " ".join(["word"] * count),
+            "sources_json": json.dumps([{"url": "https://example.com"}]),
+            "cluster_ids_json": json.dumps([1]),
+            "citation_map_json": json.dumps({}),
+        }
+
+    def test_399_words_fails_the_length_check(self):
+        result = run_deterministic_checks(self.article_with_word_count(399))
+
+        self.assertEqual(result["checks"]["body_word_count"], 399)
+        self.assertFalse(result["checks"]["body_within_target_length"])
+
+    def test_400_words_passes_the_length_check(self):
+        result = run_deterministic_checks(self.article_with_word_count(400))
+
+        self.assertEqual(result["checks"]["body_word_count"], 400)
+        self.assertTrue(result["checks"]["body_within_target_length"])
+
+    def test_arbitrarily_larger_article_passes_the_length_check(self):
+        result = run_deterministic_checks(self.article_with_word_count(5000))
+
+        self.assertEqual(result["checks"]["body_word_count"], 5000)
+        self.assertTrue(result["checks"]["body_within_target_length"])
 
 
 class EvaluationCliTests(unittest.TestCase):
