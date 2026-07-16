@@ -8,6 +8,7 @@ from evaluate_article import (
     EvaluationCallPacer,
     extract_claims_from_article,
     judge_factual_claims,
+    run_deterministic_checks,
     split_into_batches,
 )
 
@@ -137,6 +138,53 @@ class EvaluationPacerTests(unittest.TestCase):
                 unittest.mock.call(60),
             ],
         )
+
+
+class DeterministicLengthTests(unittest.TestCase):
+    @staticmethod
+    def build_article(word_total):
+        body = " ".join(["word"] * (word_total - 1) + ["[S1-F1]"])
+        citation_map = {
+            "S1-F1": {
+                "item_id": 1,
+                "fact_number": 1,
+                "source_name": "Example",
+                "headline": "Example headline",
+                "url": "https://example.com/article",
+                "claim": "Example claim",
+                "supporting_excerpt": "Example supporting excerpt",
+            }
+        }
+
+        return {
+            "title": "Example title",
+            "body": body,
+            "sources_json": json.dumps([{"source_name": "Example"}]),
+            "cluster_ids_json": json.dumps([1]),
+            "citation_map_json": json.dumps(citation_map),
+        }
+
+    def test_word_minimum_has_no_upper_bound(self):
+        expected_results = {
+            399: False,
+            400: True,
+            5000: True,
+        }
+
+        for word_total, expected in expected_results.items():
+            with self.subTest(word_total=word_total):
+                result = run_deterministic_checks(
+                    self.build_article(word_total)
+                )
+
+                self.assertEqual(
+                    result["checks"]["body_word_count"],
+                    word_total,
+                )
+                self.assertIs(
+                    result["checks"]["body_within_target_length"],
+                    expected,
+                )
 
 
 class EvaluationCliTests(unittest.TestCase):

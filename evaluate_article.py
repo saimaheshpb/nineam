@@ -16,8 +16,7 @@ from app.services.llm import (
     extract_atomic_claims, judge_claim_batch,
 )
 
-TARGET_MIN_WORDS = 800
-TARGET_MAX_WORDS = 1200
+TARGET_MIN_WORDS = 400
 DETERMINISTIC_EVAL_VERSION = "deterministic-v1"
 EVALUATION_BATCH_SIZE = 10
 EVALUATION_CALLS_PER_GROUP = 3
@@ -157,7 +156,7 @@ def run_deterministic_checks(article: dict) -> dict:
         "title_non_empty": bool(title.strip()),
         "body_non_empty": bool(body.strip()),
         "body_word_count": word_count(body),
-        "body_within_target_length": (TARGET_MIN_WORDS <= word_count(body) <= TARGET_MAX_WORDS),
+        "body_within_target_length": word_count(body) >= TARGET_MIN_WORDS,
         "sources_json_non_empty": isinstance(sources, list) and bool(sources),
         "cluster_ids_json_non_empty": isinstance(cluster_ids, list) and bool(cluster_ids),
         "citation_ids_present": bool(citations),
