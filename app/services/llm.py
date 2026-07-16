@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from typing import Literal
 
 GENERATOR_MODEL = "gemini-2.5-flash"
-GENERATION_PROMPT_VERSION = "citation-aware-v1"
+GENERATION_PROMPT_VERSION = "citation-aware-v2"
 
 CLAIM_EXTRACTOR_MODEL = "gemini-3.1-flash-lite"
 CLAIM_EXTRACTION_PROMPT_VERSION = "claim-extraction-v1"
@@ -121,7 +121,7 @@ def generate_daily_article(article_brief: str) -> dict:
 
         Requirements:
         - Return a title and body.
-        - Write between 800 and 1200 words.
+        - Write at least 400 words. There is no maximum word count.
         - Build a coherent narrative rather than listing source summaries.
         - Use only claims supported by the supplied evidence.
         - Every sentence in the body that makes a factual claim must end with
