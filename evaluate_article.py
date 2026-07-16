@@ -15,9 +15,9 @@ from app.services.llm import (
     JUDGE_MODEL, JUDGE_PROMPT_VERSION,
     extract_atomic_claims, judge_claim_batch,
 )
-from app.services.pacing import GroupedCallPacer
 
-TARGET_MIN_WORDS = 400
+TARGET_MIN_WORDS = 800
+TARGET_MAX_WORDS = 1200
 DETERMINISTIC_EVAL_VERSION = "deterministic-v1"
 EVALUATION_BATCH_SIZE = 10
 EVALUATION_CALLS_PER_GROUP = 3
@@ -25,7 +25,9 @@ EVALUATION_REQUEST_INTERVAL_SECONDS = 20
 EVALUATION_COOLDOWN_SECONDS = 60
 
 
-class EvaluationCallPacer(GroupedCallPacer):
+class EvaluationCallPacer:
+    """Spaces evaluation calls and pauses after each completed group."""
+
     def __init__(
             self,
             *,
@@ -34,13 +36,25 @@ class EvaluationCallPacer(GroupedCallPacer):
             cooldown_seconds: int = EVALUATION_COOLDOWN_SECONDS,
             sleep_fn=time.sleep,
     ):
-        super().__init__(
-            calls_per_group=calls_per_group,
-            request_interval_seconds=request_interval_seconds,
-            cooldown_seconds=cooldown_seconds,
-            sleep_fn=sleep_fn,
-            log_prefix="EVALUATION",
-        )
+        self.calls_per_group = calls_per_group
+        self.request_interval_seconds = request_interval_seconds
+        self.cooldown_seconds = cooldown_seconds
+        self.sleep_fn = sleep_fn
+        self.call_count = 0
+
+    def before_call(self) -> None:
+        if self.call_count and self.call_count % self.calls_per_group == 0:
+            print(f"EVALUATION_COOLDOWN_SECONDS={self.cooldown_seconds}")
+            self.sleep_fn(self.cooldown_seconds)
+        elif self.call_count:
+            print(
+                "EVALUATION_REQUEST_INTERVAL_SECONDS="
+                f"{self.request_interval_seconds}"
+            )
+            self.sleep_fn(self.request_interval_seconds)
+
+        self.call_count += 1
+        print(f"EVALUATION_API_CALL={self.call_count}")
 
 
 def parse_edition_date() -> str:
@@ -143,7 +157,7 @@ def run_deterministic_checks(article: dict) -> dict:
         "title_non_empty": bool(title.strip()),
         "body_non_empty": bool(body.strip()),
         "body_word_count": word_count(body),
-        "body_within_target_length": word_count(body) >= TARGET_MIN_WORDS,
+        "body_within_target_length": (TARGET_MIN_WORDS <= word_count(body) <= TARGET_MAX_WORDS),
         "sources_json_non_empty": isinstance(sources, list) and bool(sources),
         "cluster_ids_json_non_empty": isinstance(cluster_ids, list) and bool(cluster_ids),
         "citation_ids_present": bool(citations),

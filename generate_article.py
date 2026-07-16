@@ -9,8 +9,6 @@ from app.services.llm import (
     GENERATION_PROMPT_VERSION,
 )
 
-GENERATION_CLUSTER_LIMIT = 5
-
 
 def parse_edition_date() -> date:
     parser = argparse.ArgumentParser()
@@ -23,10 +21,7 @@ def parse_edition_date() -> date:
     return parser.parse_args().edition_date
 
 
-def load_top_clusters(
-        edition_date: str,
-        limit: int = GENERATION_CLUSTER_LIMIT,
-) -> list[dict]:
+def load_top_clusters(edition_date: str, limit: int = 3, ) -> list[dict]:
     conn = connect_database()
     cursor = conn.cursor()
 
@@ -186,10 +181,7 @@ def save_generated_article(edition_date: str, generated_article: dict,
 
 
 def generate_edition(edition_date: str) -> dict | None:
-    clusters = load_top_clusters(
-        edition_date,
-        limit=GENERATION_CLUSTER_LIMIT,
-    )
+    clusters = load_top_clusters(edition_date)
 
     if not clusters:
         return None
