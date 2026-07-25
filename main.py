@@ -8,6 +8,7 @@ from app.database.db import connect_database, setup_database
 from app.config import RSS_SOURCES
 
 SIMILARITY_THRESHOLD = 0.75
+RSS_ENTRY_LIMIT = 5
 
 
 def find_semantic_match(
@@ -49,7 +50,7 @@ def run_ingestion():
         if not source.enabled:
             continue
 
-        latest_links = get_latest_urls(source.url, 1)
+        latest_links = get_latest_urls(source.url, RSS_ENTRY_LIMIT)
 
         for link in latest_links:
             # 1. Check if we've already processed this exact URL (Idempotency)
