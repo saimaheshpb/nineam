@@ -16,14 +16,9 @@ RSS_SOURCES = [
         category="ai",
     ),
     NewsSource(
-        name="The Verge",
-        url="https://www.theverge.com/rss/index.xml",
-        category="technology",
-    ),
-    NewsSource(
-        name="MIT Technology Review",
-        url="https://www.technologyreview.com/feed/",
-        category="technology",
+        name="The Verge AI",
+        url="https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
+        category="ai",
     ),
     NewsSource(
         name="VentureBeat AI",
@@ -31,8 +26,23 @@ RSS_SOURCES = [
         category="ai",
     ),
     NewsSource(
-        name="Ars Technica",
-        url="https://feeds.arstechnica.com/arstechnica/index",
-        category="technology",
+        name="The Register AI + ML",
+        url=(
+            "https://api.theregister.com/api/v1/article"
+            "?limit=25&orderBy=published"
+            "&query=tag%3A%22ai+and+ml%22"
+            "&remapper=rss&site_id=2"
+        ),
+        category="ai",
+    ),
+    NewsSource(
+        name="WIRED AI",
+        url="https://www.wired.com/feed/tag/ai/latest/rss",
+        category="ai",
+    ),
+    NewsSource(
+        name="The Decoder",
+        url="https://the-decoder.com/feed/",
+        category="ai",
     ),
 ]
