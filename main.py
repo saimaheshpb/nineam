@@ -1,5 +1,8 @@
+import argparse
 import json
 import time
+from datetime import date
+
 from app.scrapers.article import get_article_text
 from app.scrapers.rss import get_latest_urls
 from app.services.embeddings import calculate_similarity, get_embedding
@@ -9,6 +12,17 @@ from app.config import RSS_SOURCES
 
 SIMILARITY_THRESHOLD = 0.75
 RSS_ENTRY_LIMIT = 5
+
+
+def parse_edition_date() -> date:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--edition-date",
+        type=date.fromisoformat,
+        default=date.today(),
+        help="Edition date in YYYY-MM-DD format.",
+    )
+    return parser.parse_args().edition_date
 
 
 def find_semantic_match(
@@ -40,7 +54,7 @@ def find_semantic_match(
     return best_match
 
 
-def run_ingestion():
+def run_ingestion(edition_date: date):
     setup_database()
 
     conn = connect_database()
@@ -96,9 +110,10 @@ def run_ingestion():
                     evidence_json,
                     category,
                     importance_score,
-                    embedding
+                    embedding,
+                    edition_date
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                            (
                                link, source.name, source.category,
@@ -108,6 +123,7 @@ def run_ingestion():
                                data.get("category", ""),
                                data.get("importance_score", 0),
                                json.dumps(embedding_vector),
+                               edition_date.isoformat(),
                            )
                            )
 
@@ -119,10 +135,10 @@ def run_ingestion():
     conn.close()
 
 
-def run_daily_pipeline():
+def run_daily_pipeline(edition_date: date):
     """Backward-compatible name for the direct ingestion script."""
-    run_ingestion()
+    run_ingestion(edition_date)
 
 
 if __name__ == "__main__":
-    run_daily_pipeline()
+    run_daily_pipeline(parse_edition_date())

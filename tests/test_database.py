@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import unittest
 from unittest.mock import Mock, patch
 
@@ -64,11 +65,17 @@ class DatabaseConnectionTests(unittest.TestCase):
     ):
         connection = connect_database_mock.return_value
         cursor = connection.cursor.return_value
+        cursor.fetchall.return_value = [(0, "edition_date")]
 
         setup_database()
 
         connect_database_mock.assert_called_once_with()
-        self.assertEqual(cursor.execute.call_count, 6)
+        executed_queries = [
+            call.args[0]
+            for call in cursor.execute.call_args_list
+        ]
+        self.assertTrue(any("PRAGMA table_info(items)" in query for query in executed_queries))
+        self.assertTrue(any("UPDATE items" in query for query in executed_queries))
         connection.commit.assert_called_once_with()
         connection.close.assert_called_once_with()
 
@@ -93,6 +100,65 @@ class DatabaseConnectionTests(unittest.TestCase):
         cursor = Mock()
 
         self.assertIsNone(row_to_dict(cursor, None))
+
+
+class ItemEditionMigrationTests(unittest.TestCase):
+    def test_backfill_uses_eight_am_ist_boundary(self):
+        connection = sqlite3.connect(":memory:")
+        connection.execute("""
+            CREATE TABLE items (
+                id INTEGER PRIMARY KEY,
+                processed_at TIMESTAMP
+            )
+        """)
+        connection.executemany(
+            "INSERT INTO items (id, processed_at) VALUES (?, ?)",
+            [
+                (1, "2026-07-12 02:29:59"),
+                (2, "2026-07-12 02:30:00"),
+            ],
+        )
+
+        try:
+            from app.database.db import create_schema
+
+            create_schema(connection)
+            rows = connection.execute(
+                "SELECT id, edition_date FROM items ORDER BY id"
+            ).fetchall()
+        finally:
+            connection.close()
+
+        self.assertEqual(
+            rows,
+            [
+                (1, "2026-07-12"),
+                (2, "2026-07-13"),
+            ],
+        )
+
+    def test_backfill_preserves_existing_edition_assignment(self):
+        connection = sqlite3.connect(":memory:")
+
+        try:
+            from app.database.db import create_schema
+
+            create_schema(connection)
+            connection.execute(
+                """
+                INSERT INTO items (id, processed_at, edition_date)
+                VALUES (?, ?, ?)
+                """,
+                (1, "2026-07-12 02:30:00", "2026-07-20"),
+            )
+            create_schema(connection)
+            edition_date = connection.execute(
+                "SELECT edition_date FROM items WHERE id = 1"
+            ).fetchone()[0]
+        finally:
+            connection.close()
+
+        self.assertEqual(edition_date, "2026-07-20")
 
 
 if __name__ == "__main__":

@@ -1,11 +1,8 @@
 import json
-from datetime import date, datetime, time, timezone, timedelta
-from zoneinfo import ZoneInfo
+from datetime import date
 import argparse
 from app.database.db import connect_database
 from app.services.clustering import ArticleForClustering, cluster_articles
-
-INDIA_TIMEZONE = ZoneInfo("Asia/Kolkata")
 
 
 def parse_edition_date() -> date:
@@ -19,22 +16,7 @@ def parse_edition_date() -> date:
     return parser.parse_args().edition_date
 
 
-def edition_window_utc(edition_date: date) -> tuple[str, str]:
-    window_end = datetime.combine(
-        edition_date,
-        time(8, 0),
-        tzinfo=INDIA_TIMEZONE,
-    ).astimezone(timezone.utc)
-
-    window_start = window_end - timedelta(days=1)
-
-    return (
-        window_start.strftime("%Y-%m-%d %H:%M:%S"),
-        window_end.strftime("%Y-%m-%d %H:%M:%S"),
-    )
-
-
-def load_articles(window_start: str, window_end: str) -> list[ArticleForClustering]:
+def load_articles(edition_date: str) -> list[ArticleForClustering]:
     conn = connect_database()
     cursor = conn.cursor()
 
@@ -42,9 +24,8 @@ def load_articles(window_start: str, window_end: str) -> list[ArticleForClusteri
         SELECT id, source_name, headline, url, embedding, importance_score
         FROM items
         WHERE embedding IS NOT NULL
-          AND processed_at >= ?
-          AND processed_at < ?
-    """, (window_start, window_end))
+          AND edition_date = ?
+    """, (edition_date,))
 
     rows = cursor.fetchall()
     conn.close()
@@ -123,9 +104,7 @@ def save_clusters(clusters, run_date: str) -> None:
 
 
 def run_clustering(edition_date: date):
-    window_start, window_end = edition_window_utc(edition_date)
-
-    articles = load_articles(window_start, window_end)
+    articles = load_articles(edition_date.isoformat())
     clusters = cluster_articles(articles)
     save_clusters(clusters, edition_date.isoformat())
 

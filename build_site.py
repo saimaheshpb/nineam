@@ -18,7 +18,6 @@ from app.services.publication import (
     PublicationOutcome,
     decide_publication,
 )
-from cluster_articles import edition_window_utc
 from run_daily import load_edition_context
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -140,7 +139,6 @@ def _load_cluster_headlines(article: dict) -> list[str]:
 
 
 def _edition_item_count(edition_date: date) -> int:
-    window_start, window_end = edition_window_utc(edition_date)
     conn = connect_database()
     cursor = conn.cursor()
     try:
@@ -148,10 +146,9 @@ def _edition_item_count(edition_date: date) -> int:
             """
             SELECT COUNT(*)
             FROM items
-            WHERE processed_at >= ?
-              AND processed_at < ?
+            WHERE edition_date = ?
             """,
-            (window_start, window_end),
+            (edition_date.isoformat(),),
         )
         return cursor.fetchone()[0]
     finally:
