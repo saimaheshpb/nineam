@@ -61,7 +61,7 @@ jobs:
           echo "date=$edition_date" >> "$GITHUB_OUTPUT"
           printf '%s\n' "$edition_date" > edition-date.txt
       - name: Collect source articles
-        run: python main.py
+        run: python main.py --edition-date "${{ steps.edition.outputs.date }}"
       - name: Generate edition
         run: python run_daily.py --edition-date "${{ steps.edition.outputs.date }}"
       - name: Upload edition-date handoff

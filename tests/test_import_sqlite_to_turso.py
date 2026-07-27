@@ -16,9 +16,9 @@ def seed_database(connection) -> None:
         INSERT INTO items (
             id, url, source_name, source_category, headline, summary,
             full_text, entities, evidence_json, category,
-            importance_score, embedding, processed_at
+            importance_score, embedding, processed_at, edition_date
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             1,
@@ -39,6 +39,7 @@ def seed_database(connection) -> None:
             8,
             json.dumps([0.1, 0.2]),
             "2026-07-12 01:00:00",
+            "2026-07-12",
         ),
     )
     connection.execute(
