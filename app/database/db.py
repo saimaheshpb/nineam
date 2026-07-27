@@ -43,6 +43,29 @@ def row_to_dict(cursor, row):
     return dict(zip(column_names, row))
 
 
+def ensure_item_edition_dates(conn) -> None:
+    """Adds and backfills the source-article edition date."""
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(items)")
+    columns = {
+        row[1]
+        for row in cursor.fetchall()
+    }
+
+    if "edition_date" not in columns:
+        cursor.execute("ALTER TABLE items ADD COLUMN edition_date TEXT")
+
+    cursor.execute("""
+        UPDATE items
+        SET edition_date = CASE
+            WHEN time(processed_at, '+5 hours', '+30 minutes') < '08:00:00'
+                THEN date(processed_at, '+5 hours', '+30 minutes')
+            ELSE date(processed_at, '+5 hours', '+30 minutes', '+1 day')
+        END
+        WHERE edition_date IS NULL
+    """)
+
+
 def create_schema(conn):
     """Creates the database tables on an existing connection."""
     cursor = conn.cursor()
@@ -61,7 +84,8 @@ def create_schema(conn):
         category TEXT,
         importance_score INTEGER,
         embedding TEXT,
-        processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        edition_date TEXT
     )
     """)
 
@@ -139,6 +163,7 @@ def create_schema(conn):
         )
     """)
 
+    ensure_item_edition_dates(conn)
     conn.commit()
 
 

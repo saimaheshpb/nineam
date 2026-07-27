@@ -3,12 +3,13 @@ import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from app.services.publication import PublicationDecision, PublicationOutcome
 from build_site import (
     SiteEdition,
     SourceEntry,
+    _edition_item_count,
     _source_entries,
     build_site,
     load_site_edition,
@@ -82,6 +83,20 @@ def edition() -> SiteEdition:
 
 
 class StaticSiteTests(unittest.TestCase):
+    @patch("build_site.connect_database")
+    def test_articles_processed_count_uses_edition_date(self, connect_database):
+        cursor = Mock()
+        cursor.fetchone.return_value = (24,)
+        connect_database.return_value.cursor.return_value = cursor
+
+        count = _edition_item_count(date(2026, 7, 27))
+
+        query, parameters = cursor.execute.call_args.args
+        self.assertIn("edition_date = ?", query)
+        self.assertNotIn("processed_at", query)
+        self.assertEqual(parameters, ("2026-07-27",))
+        self.assertEqual(count, 24)
+
     def test_page_escapes_generated_content_and_resolves_citations(self):
         page = render_site(edition())
 
