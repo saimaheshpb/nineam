@@ -45,4 +45,34 @@ RSS_SOURCES = [
         url="https://the-decoder.com/feed/",
         category="ai",
     ),
+    NewsSource(
+        name="The Guardian AI",
+        url="https://www.theguardian.com/technology/artificialintelligenceai/rss",
+        category="ai",
+    ),
+    NewsSource(
+        name="InfoQ AI",
+        url="https://feed.infoq.com/ai-ml-data-eng",
+        category="ai",
+    ),
+    NewsSource(
+        name="MIT Technology Review AI",
+        url="https://www.technologyreview.com/topic/artificial-intelligence/feed/",
+        category="ai",
+    ),
+    NewsSource(
+        name="IEEE Spectrum AI",
+        url="https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss",
+        category="ai",
+    ),
+    NewsSource(
+        name="SiliconANGLE AI",
+        url="https://siliconangle.com/category/ai/feed/",
+        category="ai",
+    ),
+    NewsSource(
+        name="AI Business",
+        url="https://aibusiness.com/rss.xml",
+        category="ai",
+    ),
 ]

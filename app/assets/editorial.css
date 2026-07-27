@@ -90,7 +90,7 @@ h1 { max-width: 1280px; margin: 0; font-family: "Instrument Serif", Georgia, ser
 .source-list li::before { content: counter(sources, decimal-leading-zero); counter-increment: sources; color: #fff; font-size: 10px; letter-spacing: .08em; }
 .source-list a { color: #fff; text-decoration: none; }
 .source-list a:hover { text-decoration: underline; }
-.source-list span { display: block; margin-top: 2px; }
+.source-list span { grid-column: 2; display: block; margin-top: 2px; }
 
 .evaluation { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(260px,.9fr); gap: 28px clamp(28px,4vw,72px); margin-top: clamp(48px,7vw,110px); padding: clamp(28px,4vw,54px) 0; border-top: 1px solid #575757; border-bottom: 1px solid var(--rule); }
 .evaluation h2 { margin: 0 0 14px; font-family: "Instrument Serif", Georgia, serif; font-size: clamp(36px,4vw,60px); font-weight: 400; letter-spacing: -.025em; line-height: .95; }

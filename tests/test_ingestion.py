@@ -8,7 +8,7 @@ from app.config import RSS_SOURCES
 
 
 class IngestionSourceTests(unittest.TestCase):
-    def test_sources_are_six_ai_only_editorial_feeds(self):
+    def test_sources_are_twelve_ai_only_editorial_feeds(self):
         self.assertEqual(
             [(source.name, source.url) for source in RSS_SOURCES],
             [
@@ -41,6 +41,30 @@ class IngestionSourceTests(unittest.TestCase):
                     "The Decoder",
                     "https://the-decoder.com/feed/",
                 ),
+                (
+                    "The Guardian AI",
+                    "https://www.theguardian.com/technology/artificialintelligenceai/rss",
+                ),
+                (
+                    "InfoQ AI",
+                    "https://feed.infoq.com/ai-ml-data-eng",
+                ),
+                (
+                    "MIT Technology Review AI",
+                    "https://www.technologyreview.com/topic/artificial-intelligence/feed/",
+                ),
+                (
+                    "IEEE Spectrum AI",
+                    "https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss",
+                ),
+                (
+                    "SiliconANGLE AI",
+                    "https://siliconangle.com/category/ai/feed/",
+                ),
+                (
+                    "AI Business",
+                    "https://aibusiness.com/rss.xml",
+                ),
             ],
         )
         self.assertTrue(all(source.enabled for source in RSS_SOURCES))
@@ -71,10 +95,10 @@ class IngestionSourceTests(unittest.TestCase):
         main.run_ingestion(date(2026, 7, 27))
 
         self.assertEqual(main.RSS_ENTRY_LIMIT, 5)
-        self.assertEqual(get_latest_urls.call_count, 6)
+        self.assertEqual(get_latest_urls.call_count, 12)
         for source in RSS_SOURCES:
             get_latest_urls.assert_any_call(source.url, 5)
-        self.assertEqual(cursor.execute.call_count, 30)
+        self.assertEqual(cursor.execute.call_count, 60)
         get_article_text.assert_not_called()
         extract_structured_data.assert_not_called()
         connection.close.assert_called_once_with()
