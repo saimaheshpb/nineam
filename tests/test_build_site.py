@@ -107,12 +107,14 @@ class StaticSiteTests(unittest.TestCase):
         self.assertIn('href="#source-01"', page)
         self.assertIn('id="source-01"', page)
         self.assertGreaterEqual(page.count('<p class="'), 2)
+        self.assertIn("4 words", page)
 
     def test_page_renders_warning_evaluation_metrics(self):
         page = render_site(edition())
 
         self.assertIn("Source-grounded evaluation", page)
         self.assertIn("Published with warnings", page)
+        self.assertIn("Evaluation failed — article published", page)
         self.assertIn("11 factual claims were not fully supported", page)
         self.assertIn("48 / 59", page)
         self.assertIn("100%", page)
@@ -157,7 +159,7 @@ class StaticSiteTests(unittest.TestCase):
             loaded_edition.decision.outcome,
             PublicationOutcome.BLOCKED,
         )
-        self.assertIn("Evaluation flagged — article published", page)
+        self.assertIn("Evaluation pending — article published", page)
         self.assertIn("Not available", page)
 
     @patch("build_site.load_site_edition", return_value=edition())

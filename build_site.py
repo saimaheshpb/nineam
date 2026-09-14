@@ -18,6 +18,7 @@ from app.services.publication import (
     PublicationOutcome,
     decide_publication,
 )
+from app.services.evaluation import count_article_words
 from run_daily import load_edition_context
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -184,9 +185,12 @@ def _format_edition_date(edition_date: str) -> str:
     return date.fromisoformat(edition_date).strftime("%B %-d, %Y")
 
 
+def _word_count(body: str) -> int:
+    return count_article_words(body)
+
+
 def _reading_time(body: str) -> int:
-    word_count = len(re.findall(r"\b\w+(?:[-']\w+)*\b", body))
-    return max(1, round(word_count / 200))
+    return max(1, round(_word_count(body) / 200))
 
 
 def _percentage(value: float | None) -> str:
@@ -278,11 +282,21 @@ def _render_threads(cluster_headlines: list[str]) -> str:
 
 def _render_evaluation(edition: SiteEdition) -> str:
     decision = edition.decision
+    eval_status = edition.article.get("eval_status")
     unsupported_count = sum(
         claim.get("verdict") != "supported"
         for claim in edition.claim_evaluations
     )
-    if decision.outcome == PublicationOutcome.CLEAN:
+    if eval_status == "pending":
+        status_label = "Evaluation pending — article published"
+        status_copy = "Claim-level evaluation has not completed yet."
+    elif eval_status == "failed":
+        status_label = "Evaluation failed — article published"
+        status_copy = (
+            "The evaluation flagged this edition, which remains published. "
+            f"{unsupported_count} factual claims were not fully supported."
+        )
+    elif decision.outcome == PublicationOutcome.CLEAN:
         status_label = "Strict evaluation passed"
         status_copy = "Every evaluated factual claim was supported by its cited evidence."
     elif decision.outcome == PublicationOutcome.PUBLISHABLE_WITH_WARNINGS:
@@ -370,7 +384,7 @@ def render_site(edition: SiteEdition) -> str:
     </header>
 
     <section class="meta" aria-label="Edition metadata">
-      <span>{edition_date}</span><span>Daily 9 AM IST edition</span><span>By NineAM Research Desk</span><span>{_reading_time(article['body'])} min read</span><span>{len(edition.sources)} sources used</span>
+      <span>{edition_date}</span><span>Daily 9 AM IST edition</span><span>By NineAM Research Desk</span><span>{_reading_time(article['body'])} min read</span><span>{_word_count(article['body'])} words</span><span>{len(edition.sources)} sources used</span>
     </section>
 
     <section class="hero">

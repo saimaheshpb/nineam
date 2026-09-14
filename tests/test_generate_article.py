@@ -8,20 +8,24 @@ from app.services import llm
 
 
 class GenerationPromptTests(unittest.TestCase):
-    @patch("app.services.llm.client.models.generate_content")
+    @patch("app.services.llm._request_structured")
     def test_generation_requires_at_least_400_words_without_maximum(
         self,
-        generate_content,
+        request_structured,
     ):
-        generate_content.return_value.text = json.dumps({
+        request_structured.return_value = {
             "title": "Example title",
             "body": "Example body",
-        })
+        }
 
         result = llm.generate_daily_article("Evidence brief")
 
-        prompt, brief = generate_content.call_args.kwargs["contents"]
+        role, model, schema, prompt, brief = request_structured.call_args.args
+        self.assertEqual(role, "article_generation")
+        self.assertEqual(model, llm.GENERATOR_MODEL)
+        self.assertIs(schema, llm.GeneratedArticle)
         self.assertEqual(brief, "Evidence brief")
+        self.assertEqual(request_structured.call_args.kwargs["reasoning_effort"], "low")
         self.assertIn("at least 400 words", prompt)
         self.assertIn("no maximum word count", prompt)
         self.assertNotIn("1200", prompt)

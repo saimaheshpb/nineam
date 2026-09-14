@@ -19,16 +19,16 @@ class EvaluationBatchTests(unittest.TestCase):
 
         self.assertEqual([len(batch) for batch in batches], [10, 10, 1])
 
-    @patch("app.services.llm.client.models.generate_content")
-    def test_atomic_extractor_accepts_ten_and_rejects_eleven(self, generate):
-        generate.return_value.text = json.dumps({"claims": []})
+    @patch("app.services.llm._request_structured")
+    def test_atomic_extractor_accepts_ten_and_rejects_eleven(self, request):
+        request.return_value = {"claims": []}
 
         self.assertEqual(llm.extract_atomic_claims([{}] * 10), [])
         with self.assertRaisesRegex(ValueError, "at most ten sentences"):
             llm.extract_atomic_claims([{}] * 11)
 
-    @patch("app.services.llm.client.models.generate_content")
-    def test_claim_judge_accepts_ten_and_rejects_eleven(self, generate):
+    @patch("app.services.llm._request_structured")
+    def test_claim_judge_accepts_ten_and_rejects_eleven(self, request):
         claims = [
             {
                 "claim_index": index,
@@ -45,7 +45,7 @@ class EvaluationBatchTests(unittest.TestCase):
                 "supporting_excerpt": "Evidence excerpt",
             }
         }
-        generate.return_value.text = json.dumps({
+        request.return_value = {
             "verdicts": [
                 {
                     "claim_index": index,
@@ -56,11 +56,22 @@ class EvaluationBatchTests(unittest.TestCase):
                 }
                 for index in range(1, 11)
             ]
-        })
+        }
 
         self.assertEqual(len(llm.judge_claim_batch(claims, citation_map)), 10)
         with self.assertRaisesRegex(ValueError, "at most ten claims"):
             llm.judge_claim_batch(claims + [claims[0]], citation_map)
+
+    @patch("evaluate_article.judge_claim_batch", return_value=[])
+    def test_missing_claim_verdict_is_rejected(self, _judge_batch):
+        claims = [{
+            "claim_index": 1,
+            "claim_text": "A factual claim",
+            "is_factual": True,
+            "citation_ids": ["S1-F1"],
+        }]
+        with self.assertRaisesRegex(ValueError, "exactly one verdict"):
+            judge_factual_claims(claims, {}, Mock())
 
 
 class EvaluationPacerTests(unittest.TestCase):
@@ -143,7 +154,7 @@ class EvaluationPacerTests(unittest.TestCase):
 class DeterministicLengthTests(unittest.TestCase):
     @staticmethod
     def build_article(word_total):
-        body = " ".join(["word"] * (word_total - 1) + ["[S1-F1]"])
+        body = " ".join(["word"] * word_total) + " [S1-F1]"
         citation_map = {
             "S1-F1": {
                 "item_id": 1,
@@ -185,6 +196,42 @@ class DeterministicLengthTests(unittest.TestCase):
                     result["checks"]["body_within_target_length"],
                     expected,
                 )
+                self.assertEqual(result["overall_status"], "needs_review")
+
+    @patch("evaluate_article.finalize_eval_run")
+    @patch("evaluate_article.judge_factual_claims")
+    @patch("evaluate_article.extract_claims_from_article")
+    @patch("evaluate_article.save_eval_run", return_value=1)
+    @patch("evaluate_article.load_generated_article")
+    @patch("evaluate_article.setup_database")
+    def test_short_article_still_reaches_claim_judging(
+        self,
+        _setup,
+        load_article,
+        _save,
+        extract_claims,
+        judge_claims,
+        _finalize,
+    ):
+        load_article.return_value = {
+            **self.build_article(20),
+            "id": 1,
+        }
+        extract_claims.return_value = [{"claim_index": 1}]
+        judge_claims.return_value = [{
+            "claim_index": 1,
+            "claim_text": "Supported claim",
+            "citation_ids": ["S1-F1"],
+            "verdict": "supported",
+            "severity": "none",
+        }]
+
+        result = evaluate_article.evaluate_edition("2026-07-12")
+
+        self.assertFalse(result["checks"]["body_within_target_length"])
+        extract_claims.assert_called_once()
+        judge_claims.assert_called_once()
+        self.assertEqual(result["overall_status"], "passed")
 
 
 class EvaluationCliTests(unittest.TestCase):
