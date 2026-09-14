@@ -2,8 +2,15 @@ import re
 
 INLINE_CITATION_PATTERN = re.compile(r"\[(S\d+-F\d+)\]")
 CITATION_ID_PATTERN = re.compile(r"^S(\d+)-F(\d+)$")
+ARTICLE_WORD_PATTERN = re.compile(r"\b\w+(?:[-']\w+)*\b")
+HTML_TAG_PATTERN = re.compile(r"</?[A-Za-z][^>]*>")
 SENTENCE_BOUNDARY_PATTERN = re.compile(r"(?<=[.!?])\s+")
 MISSING_SENTENCE_SPACE_PATTERN = re.compile(r'(?<=[a-z0-9\])"])([.!?])(?=[A-Z])')
+POST_SENTENCE_CITATIONS = re.compile(
+    r'(?P<mark>[.!?])\s+(?P<citations>(?:\[S\d+-F\d+\]\s*)+)(?=\S|$)'
+)
+ABBREVIATIONS = re.compile(r"\b(?:U\.S\.|U\.K\.)")
+PROTECTED_PERIOD = "\ue000"
 
 REQUIRED_CITATION_FIELDS = {
     "item_id",
@@ -23,6 +30,13 @@ def extract_citation_ids(body: str) -> list[str]:
     "Google changed Search [S4-F1]." -> ["S4-F1"]
     """
     return INLINE_CITATION_PATTERN.findall(body)
+
+
+def count_article_words(body: str) -> int:
+    """Count visible prose, excluding citation labels and markup tags."""
+    prose = INLINE_CITATION_PATTERN.sub("", body)
+    prose = HTML_TAG_PATTERN.sub("", prose)
+    return len(ARTICLE_WORD_PATTERN.findall(prose))
 
 
 def validate_citation_map(citation_map: dict[str, dict]) -> list[str]:
@@ -91,9 +105,21 @@ def build_sentence_records(body: str) -> list[dict]:
     inline citation IDs.
     """
     body = MISSING_SENTENCE_SPACE_PATTERN.sub(r"\1 ", body)
+    # A citation after sentence punctuation still supports that sentence.
+    body = POST_SENTENCE_CITATIONS.sub(
+        lambda match: (
+            f" {match.group('citations').strip()}{match.group('mark')} "
+        ),
+        body,
+    )
+    # Protect abbreviation periods while locating sentence boundaries.
+    body = ABBREVIATIONS.sub(
+        lambda match: match.group().replace(".", PROTECTED_PERIOD),
+        body,
+    )
 
     sentences = [
-        sentence.strip()
+        sentence.replace(PROTECTED_PERIOD, ".").strip()
         for sentence in SENTENCE_BOUNDARY_PATTERN.split(body.strip())
         if sentence.strip()
     ]

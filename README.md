@@ -49,7 +49,7 @@ static rebuild with evaluation results
 ### 1. Collect and structure
 
 `main.py` reads configured RSS feeds, scrapes the latest articles, and uses
-Gemini structured output to extract metadata and evidence facts. Exact duplicate
+Vercel AI Gateway structured output to extract metadata and evidence facts. Exact duplicate
 URLs are skipped, while semantically related reporting from independent sources
 is retained for clustering.
 
@@ -64,7 +64,7 @@ and source diversity.
 `run_daily.py` clusters the current edition when necessary and generates one
 article from the selected evidence. Every factual sentence must cite a stable
 evidence identifier such as `S4-F1`. The pending article is rendered by
-`build_site.py` and deployed immediately.
+`build_site.py` and deployed immediately. The page displays its actual word count.
 
 ### 4. Evaluate and enrich
 
@@ -75,6 +75,7 @@ apart, with a full 60-second cooldown after every third evaluation call.
 
 Evaluation is intentionally separate from initial publishing. A temporary model
 failure can delay scores, but it cannot remove the already-published article.
+Article length is reported but does not stop claim-level evaluation.
 
 ## Automated Publishing
 
@@ -93,7 +94,7 @@ sources or regenerating the article.
 ## Technology
 
 - **Python 3.12** for ingestion, generation, evaluation, and static rendering
-- **Gemini** for structured extraction, article generation, and claim judging
+- **Vercel AI Gateway** for role-specific structured extraction, article generation, and claim judging
 - **Sentence Transformers** for local semantic embeddings
 - **Turso/libSQL** for production persistence
 - **SQLite** as the zero-configuration local database
@@ -105,7 +106,7 @@ sources or regenerating the article.
 ### Prerequisites
 
 - Python 3.12
-- a Gemini API key
+- a Vercel AI Gateway API key
 - optional Turso credentials for cloud persistence
 
 ### Install
@@ -120,14 +121,18 @@ python -m pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Set `GEMINI_API_KEY` in `.env`. Leave both Turso variables empty to use the local
+Set `AI_GATEWAY_API_KEY` in `.env`. Leave both Turso variables empty to use the local
 `news_aggregator.db` database.
 
 ### Environment variables
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `GEMINI_API_KEY` | Yes | Structured extraction, generation, and evaluation |
+| `AI_GATEWAY_API_KEY` | Yes | Gateway authentication for all four model roles |
+| `EVIDENCE_EXTRACTION_MODEL` | No | Source evidence model; defaults to `openai/gpt-5.6-luna` |
+| `ARTICLE_GENERATION_MODEL` | No | Writer model; defaults to `alibaba/qwen3.8-max-0902` |
+| `CLAIM_EXTRACTION_MODEL` | No | Atomic claim model; defaults to `openai/gpt-5.6-luna` |
+| `CLAIM_JUDGE_MODEL` | No | Claim judge; defaults to `deepseek/deepseek-v4.1-flash` |
 | `TURSO_DATABASE_URL` | No | Production libSQL database URL |
 | `TURSO_AUTH_TOKEN` | No | Production libSQL authentication token |
 
@@ -207,7 +212,7 @@ PLANS.md                    Current implementation and verification ledger
 
 ## Tests
 
-The test suite uses mocks for Gemini and does not consume API quota:
+The test suite uses mocked model responses and does not consume API quota:
 
 ```bash
 python -m unittest discover -s tests -v

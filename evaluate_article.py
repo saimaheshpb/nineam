@@ -1,13 +1,12 @@
 import argparse
 import json
-import re
 import sys
 from datetime import date
 import time
 
 from app.database.db import connect_database, row_to_dict, setup_database
 from app.services.evaluation import (
-    build_sentence_records, extract_citation_ids,
+    build_sentence_records, count_article_words, extract_citation_ids,
     validate_citation_ids, validate_citation_map,
 )
 
@@ -68,7 +67,7 @@ def parse_edition_date() -> str:
 
 
 def word_count(text: str) -> int:
-    return len(re.findall(r"\b\w+(?:[-']\w+)*\b", text))
+    return count_article_words(text)
 
 
 def load_generated_article(edition_date: str) -> dict:
@@ -168,7 +167,6 @@ def run_deterministic_checks(article: dict) -> dict:
     hard_failure = (
             not checks["title_non_empty"]
             or not checks["body_non_empty"]
-            or not checks["body_within_target_length"]
             or not checks["sources_json_non_empty"]
             or not checks["cluster_ids_json_non_empty"]
             or not checks["citation_ids_present"]
@@ -227,8 +225,7 @@ def save_eval_run(article_id: int, result: dict) -> int | None:
     return eval_run_id
 
 
-# Just a function used to split a list of sentence records into batches.
-# Just to save tokens and money while calling Gemini again in extract_atomic_claims.
+# Split sentence records into the existing ten-sentence model batches.
 def split_into_batches(
         records: list[dict],
         batch_size: int = EVALUATION_BATCH_SIZE,
