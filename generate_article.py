@@ -21,7 +21,7 @@ def parse_edition_date() -> date:
     return parser.parse_args().edition_date
 
 
-def load_top_clusters(edition_date: str, limit: int = 3, ) -> list[dict]:
+def load_top_clusters(edition_date: str, limit: int = 5, ) -> list[dict]:
     conn = connect_database()
     cursor = conn.cursor()
 
