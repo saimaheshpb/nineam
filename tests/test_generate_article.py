@@ -35,7 +35,7 @@ class GenerationPromptTests(unittest.TestCase):
 
 class ClusterSelectionTests(unittest.TestCase):
     @patch("generate_article.connect_database")
-    def test_top_clusters_default_to_three_in_descending_rank_order(
+    def test_top_clusters_default_to_five_in_descending_rank_order(
         self,
         connect_database,
     ):
@@ -49,12 +49,12 @@ class ClusterSelectionTests(unittest.TestCase):
         self.assertEqual(clusters, [])
         self.assertIn("ORDER BY rank_score DESC", query)
         self.assertIn("LIMIT ?", query)
-        self.assertEqual(parameters, ("2026-07-17", 3))
+        self.assertEqual(parameters, ("2026-07-17", 5))
         self.assertEqual(
             inspect.signature(
                 generate_article.load_top_clusters
             ).parameters["limit"].default,
-            3,
+            5,
         )
 
 
