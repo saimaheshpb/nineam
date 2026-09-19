@@ -15,7 +15,7 @@ EVIDENCE_EXTRACTION_MODEL = os.getenv(
     "EVIDENCE_EXTRACTION_MODEL", "openai/gpt-5.6-luna"
 )
 GENERATOR_MODEL = os.getenv(
-    "ARTICLE_GENERATION_MODEL", "alibaba/qwen3.8-max-0902"
+    "ARTICLE_GENERATION_MODEL", "openai/gpt-5.6-terra"
 )
 GENERATION_PROMPT_VERSION = "citation-aware-v2"
 
@@ -25,7 +25,7 @@ CLAIM_EXTRACTOR_MODEL = os.getenv(
 CLAIM_EXTRACTION_PROMPT_VERSION = "claim-extraction-v1"
 
 JUDGE_MODEL = os.getenv(
-    "CLAIM_JUDGE_MODEL", "deepseek/deepseek-v4.1-flash"
+    "CLAIM_JUDGE_MODEL", "openai/gpt-5.6-luna"
 )
 JUDGE_PROMPT_VERSION = "claim-faithfulness-v1"
 
