@@ -129,10 +129,10 @@ Set `AI_GATEWAY_API_KEY` in `.env`. Leave both Turso variables empty to use the 
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `AI_GATEWAY_API_KEY` | Yes | Gateway authentication for all four model roles |
-| `EVIDENCE_EXTRACTION_MODEL` | No | Source evidence model; defaults to `openai/gpt-5.6-luna` |
+| `EVIDENCE_EXTRACTION_MODEL` | No | Source evidence model; defaults to `openai/gpt-6-luna` |
 | `ARTICLE_GENERATION_MODEL` | No | Writer model; defaults to `openai/gpt-5.6-terra` |
-| `CLAIM_EXTRACTION_MODEL` | No | Atomic claim model; defaults to `openai/gpt-5.6-luna` |
-| `CLAIM_JUDGE_MODEL` | No | Claim judge; defaults to `openai/gpt-5.6-luna` |
+| `CLAIM_EXTRACTION_MODEL` | No | Atomic claim model; defaults to `openai/gpt-6-luna` |
+| `CLAIM_JUDGE_MODEL` | No | Claim judge; defaults to `openai/gpt-6-luna` |
 | `TURSO_DATABASE_URL` | No | Production libSQL database URL |
 | `TURSO_AUTH_TOKEN` | No | Production libSQL authentication token |
 

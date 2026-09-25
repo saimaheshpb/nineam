@@ -12,7 +12,7 @@ from typing import Literal
 load_dotenv()
 
 EVIDENCE_EXTRACTION_MODEL = os.getenv(
-    "EVIDENCE_EXTRACTION_MODEL", "openai/gpt-5.6-luna"
+    "EVIDENCE_EXTRACTION_MODEL", "openai/gpt-6-luna"
 )
 GENERATOR_MODEL = os.getenv(
     "ARTICLE_GENERATION_MODEL", "openai/gpt-5.6-terra"
@@ -20,12 +20,12 @@ GENERATOR_MODEL = os.getenv(
 GENERATION_PROMPT_VERSION = "citation-aware-v2"
 
 CLAIM_EXTRACTOR_MODEL = os.getenv(
-    "CLAIM_EXTRACTION_MODEL", "openai/gpt-5.6-luna"
+    "CLAIM_EXTRACTION_MODEL", "openai/gpt-6-luna"
 )
 CLAIM_EXTRACTION_PROMPT_VERSION = "claim-extraction-v1"
 
 JUDGE_MODEL = os.getenv(
-    "CLAIM_JUDGE_MODEL", "openai/gpt-5.6-luna"
+    "CLAIM_JUDGE_MODEL", "openai/gpt-6-luna"
 )
 JUDGE_PROMPT_VERSION = "claim-faithfulness-v1"
 
