@@ -15,7 +15,7 @@ EVIDENCE_EXTRACTION_MODEL = os.getenv(
     "EVIDENCE_EXTRACTION_MODEL", "openai/gpt-6-luna"
 )
 GENERATOR_MODEL = os.getenv(
-    "ARTICLE_GENERATION_MODEL", "openai/gpt-5.6-terra"
+    "ARTICLE_GENERATION_MODEL", "openai/gpt-6.1-sol"
 )
 GENERATION_PROMPT_VERSION = "citation-aware-v2"
 
