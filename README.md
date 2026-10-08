@@ -130,8 +130,8 @@ fails its step loudly.
 
 | Role | Default model | Used in | Volume per edition |
 | --- | --- | --- | --- |
-| Evidence extraction | `openai/gpt-6-luna` | `main.py` | One call per new article |
-| Article generation | `openai/gpt-6.1-sol` (reasoning effort `low`) | `generate_article.py` | One call |
+| Evidence extraction | `anthropic/claude-haiku-5-5` | `main.py` | One call per new article |
+| Article generation | `anthropic/claude-sonnet-5-5` (reasoning effort `low`) | `generate_article.py` | One call |
 | Claim extraction | `openai/gpt-6-luna` | `evaluate_article.py` | One call per 10 sentences |
 | Claim judging | `openai/gpt-6-luna` | `evaluate_article.py` | One call per 10 cited claims |
 | Embeddings | `all-MiniLM-L6-v2` (local, CPU) | `main.py`, clustering | Free |
@@ -288,7 +288,7 @@ SQLite-to-Turso import, workflow date handoff, and model-configuration drift.
 
 ## Known limitations
 
-- The judge and the writer currently come from the same model family. A judge
+- The writer (Claude) and the judge (GPT) come from different families, but the judge is a small model. A stronger judge
   from a different family would be a more independent check.
 - Not built yet (see `NINEAM_EVAL_HARNESS.md`): cross-source conflict
   detection, an editorial-quality judge, and a labelled golden set to calibrate
